@@ -8531,6 +8531,7 @@ GameObject:
   - component: {fileID: 791119769}
   - component: {fileID: 791119768}
   - component: {fileID: 791119773}
+  - component: {fileID: 791119774}
   m_Layer: 0
   m_Name: '[BuildingBlock] Camera Rig'
   m_TagString: Untagged
@@ -8709,7 +8710,23 @@ MonoBehaviour:
   rightHandRoot: {fileID: 1569797058}
   leftHandRoot: {fileID: 1365132202}
   enableMirrorTherapy: 1
-  disableLeftHandTracking: 1
+  sourceHand: 0
+  disableMirrorHandTracking: 1
+--- !u!114 &791119774
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 791119767}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f77e19ee2e8753241b9ccfd3340491be, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MirrorTherapyManager
+  mirrorHand: {fileID: 791119773}
+  enableMirrorTherapy: 1
+  sourceHand: 0
 --- !u!1 &799541787
 GameObject:
   m_ObjectHideFlags: 0

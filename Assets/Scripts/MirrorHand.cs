@@ -1,58 +1,116 @@
 using UnityEngine;
 using System.Collections.Generic;
 
+public enum SourceHand
+{
+    Right,
+    Left
+}
+
 public class MirrorHand : MonoBehaviour
 {
     [Header("Roots")]
     [SerializeField] private Transform rightHandRoot;
     [SerializeField] private Transform leftHandRoot;
+    [SerializeField] private GameObject rightInteraction;
+    [SerializeField] private GameObject leftInteraction;
 
     [Header("Mirror Therapy Settings")]
-    [SerializeField] private bool enableMirrorTherapy = true;
-    [Tooltip("Désactive automatiquement les composants de hand tracking sur la main gauche")]
-    [SerializeField] private bool disableLeftHandTracking = true;
+    [SerializeField] private bool enableMirrorTherapy = false;
+    [SerializeField] private SourceHand sourceHand = SourceHand.Right;
+    [Tooltip("Désactive automatiquement les composants de hand tracking sur la main miroir")]
+    [SerializeField] private bool disableMirrorHandTracking = true;
 
-    private Dictionary<string, Transform> leftJointsByName = new();
-    private SkinnedMeshRenderer[] leftHandRenderers;
-    private Renderer[] leftHandAllRenderers;
+    private Dictionary<string, Transform> mirrorJointsByName = new();
+    private SkinnedMeshRenderer[] mirrorHandRenderers;
+    private Renderer[] mirrorHandAllRenderers;
+    private SourceHand lastSourceHand;
 
     void Start()
     {
-        if (disableLeftHandTracking)
+        lastSourceHand = sourceHand;
+        InitializeMirror();
+    }
+
+    private void InitializeMirror()
+    {
+        if (disableMirrorHandTracking)
         {
-            DisableLeftHandTracking();
+            DisableMirrorHandTracking();
         }
         
-        CacheLeftHandJoints();
-        CacheLeftHandRenderers();
-        ForceShowLeftHand();
+        CacheMirrorHandJoints();
+        CacheMirrorHandRenderers();
+        
+        if (enableMirrorTherapy)
+        {
+            ForceShowMirrorHand();
+        }
     }
 
     void LateUpdate()
     {
+        // Vérifier si la main source a changé
+        if (lastSourceHand != sourceHand)
+        {
+            lastSourceHand = sourceHand;
+            InitializeMirror();
+        }
+
         if (enableMirrorTherapy)
         {
-            // Forcer l'affichage de la main gauche à chaque frame
-            ForceShowLeftHand();
-            MirrorRightToLeft();
+            ForceShowMirrorHand();
+            MirrorHands();
         }
     }
 
-    private void ForceShowLeftHand()
+    private Transform GetSourceHandRoot()
     {
-        if (leftHandRoot == null)
+        return sourceHand == SourceHand.Right ? rightHandRoot : leftHandRoot;
+    }
+
+    private Transform GetMirrorHandRoot()
+    {
+        return sourceHand == SourceHand.Right ? leftHandRoot : rightHandRoot;
+    }
+
+    public void SetEnableMirrorTherapy(bool enable)
+    {
+        enableMirrorTherapy = enable;
+        if (enable)
+        {
+            InitializeMirror();
+        }
+    }
+
+    public void SetSourceHand(SourceHand hand)
+    {
+        if (sourceHand != hand)
+        {
+            sourceHand = hand;
+            InitializeMirror();
+        }
+    }
+
+    public bool IsEnabled => enableMirrorTherapy;
+    public SourceHand CurrentSourceHand => sourceHand;
+
+    private void ForceShowMirrorHand()
+    {
+        var mirrorRoot = GetMirrorHandRoot();
+        if (mirrorRoot == null)
             return;
 
         // S'assurer que le GameObject est actif
-        if (!leftHandRoot.gameObject.activeInHierarchy)
+        if (!mirrorRoot.gameObject.activeInHierarchy)
         {
-            leftHandRoot.gameObject.SetActive(true);
+            mirrorRoot.gameObject.SetActive(true);
         }
 
         // Activer tous les renderers
-        if (leftHandRenderers != null)
+        if (mirrorHandRenderers != null)
         {
-            foreach (var renderer in leftHandRenderers)
+            foreach (var renderer in mirrorHandRenderers)
             {
                 if (renderer != null && !renderer.enabled)
                 {
@@ -61,9 +119,9 @@ public class MirrorHand : MonoBehaviour
             }
         }
 
-        if (leftHandAllRenderers != null)
+        if (mirrorHandAllRenderers != null)
         {
-            foreach (var renderer in leftHandAllRenderers)
+            foreach (var renderer in mirrorHandAllRenderers)
             {
                 if (renderer != null && !renderer.enabled)
                 {
@@ -73,24 +131,37 @@ public class MirrorHand : MonoBehaviour
         }
     }
 
-    private void CacheLeftHandRenderers()
+    private void CacheMirrorHandRenderers()
     {
-        if (leftHandRoot == null)
+        var mirrorRoot = GetMirrorHandRoot();
+        if (mirrorRoot == null)
             return;
 
-        leftHandRenderers = leftHandRoot.GetComponentsInChildren<SkinnedMeshRenderer>(true);
-        leftHandAllRenderers = leftHandRoot.GetComponentsInChildren<Renderer>(true);
+        mirrorHandRenderers = mirrorRoot.GetComponentsInChildren<SkinnedMeshRenderer>(true);
+        mirrorHandAllRenderers = mirrorRoot.GetComponentsInChildren<Renderer>(true);
         
-        Debug.Log($"[MirrorHand] {leftHandRenderers.Length} SkinnedMeshRenderers trouvés sur la main gauche");
+        string handName = sourceHand == SourceHand.Right ? "gauche" : "droite";
+        Debug.Log($"[MirrorHand] {mirrorHandRenderers.Length} SkinnedMeshRenderers trouvés sur la main {handName} (miroir)");
     }
 
-    private void DisableLeftHandTracking()
+    private void DisableMirrorHandTracking()
     {
-        if (leftHandRoot == null)
+        var mirrorRoot = GetMirrorHandRoot();
+        if (mirrorRoot == null)
             return;
 
-        // Recherche et désactivation de TOUS les composants de hand tracking sur la main gauche
-        var allComponents = leftHandRoot.GetComponentsInChildren<MonoBehaviour>(true);
+        if (sourceHand == SourceHand.Right)
+        {
+            leftInteraction.SetActive(false);
+            rightInteraction.SetActive(true);
+        }
+        else
+        {
+            leftInteraction.SetActive(true);
+            rightInteraction.SetActive(false);
+        }
+        // Recherche et désactivation de TOUS les composants de hand tracking sur la main miroir
+        var allComponents = mirrorRoot.GetComponentsInChildren<MonoBehaviour>(true);
         
         foreach (var component in allComponents)
         {
@@ -116,63 +187,87 @@ public class MirrorHand : MonoBehaviour
             }
         }
         
-        Debug.Log("[MirrorHand] Désactivation du hand tracking gauche terminée - la main gauche sera contrôlée en miroir de la droite");
+        string handName = sourceHand == SourceHand.Right ? "gauche" : "droite";
+        Debug.Log($"[MirrorHand] Désactivation du hand tracking {handName} terminée - cette main sera contrôlée en miroir");
     }
 
-    private void CacheLeftHandJoints()
+    private void CacheMirrorHandJoints()
     {
-        if (leftHandRoot == null)
+        var mirrorRoot = GetMirrorHandRoot();
+        if (mirrorRoot == null)
         {
-            Debug.LogError("[MirrorHand] leftHandRoot n'est pas assigné !");
+            Debug.LogError("[MirrorHand] mirrorHandRoot n'est pas assigné !");
             return;
         }
         
-        leftJointsByName.Clear();
+        mirrorJointsByName.Clear();
 
-        foreach (Transform t in leftHandRoot.GetComponentsInChildren<Transform>(true))
+        foreach (Transform t in mirrorRoot.GetComponentsInChildren<Transform>(true))
         {
-            if (!leftJointsByName.ContainsKey(t.name))
-                leftJointsByName.Add(t.name, t);
+            if (!mirrorJointsByName.ContainsKey(t.name))
+                mirrorJointsByName.Add(t.name, t);
         }
         
-        Debug.Log($"[MirrorHand] {leftJointsByName.Count} joints mis en cache pour la main gauche");
+        string handName = sourceHand == SourceHand.Right ? "gauche" : "droite";
+        Debug.Log($"[MirrorHand] {mirrorJointsByName.Count} joints mis en cache pour la main {handName} (miroir)");
     }
 
-    private void MirrorRightToLeft()
+    private void MirrorHands()
     {
-        if (rightHandRoot == null || leftHandRoot == null)
+        var sourceRoot = GetSourceHandRoot();
+        var mirrorRoot = GetMirrorHandRoot();
+        
+        if (sourceRoot == null || mirrorRoot == null)
             return;
             
         // Miroir de la position root
-        Vector3 rightPos = rightHandRoot.localPosition;
-        leftHandRoot.localPosition = new Vector3(-rightPos.x, rightPos.y, rightPos.z);
+        Vector3 sourcePos = sourceRoot.localPosition;
+        mirrorRoot.localPosition = new Vector3(-sourcePos.x, sourcePos.y, sourcePos.z);
         
         // Miroir de la rotation root
-        Quaternion rightRot = rightHandRoot.localRotation;
-        leftHandRoot.localRotation = new Quaternion(rightRot.x, -rightRot.y, -rightRot.z, rightRot.w);
+        Quaternion sourceRot = sourceRoot.localRotation;
+        mirrorRoot.localRotation = new Quaternion(sourceRot.x, -sourceRot.y, -sourceRot.z, sourceRot.w);
 
-        foreach (Transform rightJoint in rightHandRoot.GetComponentsInChildren<Transform>())
+        // Détermine les patterns de remplacement selon la main source
+        string sourcePattern1, mirrorPattern1, sourcePattern2, mirrorPattern2, sourcePattern3, mirrorPattern3;
+        if (sourceHand == SourceHand.Right)
         {
-            if (rightJoint == rightHandRoot)
+            sourcePattern1 = "Right"; mirrorPattern1 = "Left";
+            sourcePattern2 = "right"; mirrorPattern2 = "left";
+            sourcePattern3 = "_R"; mirrorPattern3 = "_L";
+        }
+        else
+        {
+            sourcePattern1 = "Left"; mirrorPattern1 = "Right";
+            sourcePattern2 = "left"; mirrorPattern2 = "right";
+            sourcePattern3 = "_L"; mirrorPattern3 = "_R";
+        }
+
+        foreach (Transform sourceJoint in sourceRoot.GetComponentsInChildren<Transform>())
+        {
+            if (sourceJoint == sourceRoot)
                 continue;
                 
-            // Remplacer "Right" par "Left" dans le nom pour trouver le joint correspondant
-            string leftJointName = rightJoint.name.Replace("Right", "Left").Replace("right", "left").Replace("_R", "_L");
+            // Remplacer le pattern source par le pattern miroir dans le nom
+            string mirrorJointName = sourceJoint.name
+                .Replace(sourcePattern1, mirrorPattern1)
+                .Replace(sourcePattern2, mirrorPattern2)
+                .Replace(sourcePattern3, mirrorPattern3);
             
             // Essayer d'abord avec le nom modifié, puis avec le nom original
-            if (!leftJointsByName.TryGetValue(leftJointName, out Transform leftJoint))
+            if (!mirrorJointsByName.TryGetValue(mirrorJointName, out Transform mirrorJoint))
             {
-                if (!leftJointsByName.TryGetValue(rightJoint.name, out leftJoint))
+                if (!mirrorJointsByName.TryGetValue(sourceJoint.name, out mirrorJoint))
                     continue;
             }
 
             // --- Position miroir (axe X local) ---
-            Vector3 lp = rightJoint.localPosition;
-            leftJoint.localPosition = new Vector3(-lp.x, lp.y, lp.z);
+            Vector3 lp = sourceJoint.localPosition;
+            mirrorJoint.localPosition = new Vector3(-lp.x, lp.y, lp.z);
 
             // --- Rotation miroir ---
-            Quaternion r = rightJoint.localRotation;
-            leftJoint.localRotation = new Quaternion(r.x, -r.y, -r.z, r.w);
+            Quaternion r = sourceJoint.localRotation;
+            mirrorJoint.localRotation = new Quaternion(r.x, -r.y, -r.z, r.w);
         }
     }
 }
