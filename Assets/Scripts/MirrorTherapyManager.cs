@@ -16,8 +16,12 @@ public class MirrorTherapyManager : MonoBehaviour
     [Tooltip("Choisir quelle main est la source (l'autre sera le miroir)")]
     [SerializeField] private SourceHand sourceHand = SourceHand.Right;
 
+    [Tooltip("Choisir quel oeil utiliser comme référence pour le plan de miroir")]
+    [SerializeField] private EyeReference eyeReference = EyeReference.CenterEye;
+
     private bool lastEnableState;
     private SourceHand lastSourceHand;
+    private EyeReference lastEyeReference;
 
     void Start()
     {
@@ -34,16 +38,18 @@ public class MirrorTherapyManager : MonoBehaviour
         ApplySettings();
         lastEnableState = enableMirrorTherapy;
         lastSourceHand = sourceHand;
+        lastEyeReference = eyeReference;
     }
 
     void Update()
     {
         // Détecter les changements dans l'Inspector
-        if (lastEnableState != enableMirrorTherapy || lastSourceHand != sourceHand)
+        if (lastEnableState != enableMirrorTherapy || lastSourceHand != sourceHand || lastEyeReference != eyeReference)
         {
             ApplySettings();
             lastEnableState = enableMirrorTherapy;
             lastSourceHand = sourceHand;
+            lastEyeReference = eyeReference;
         }
     }
 
@@ -53,6 +59,7 @@ public class MirrorTherapyManager : MonoBehaviour
             return;
 
         mirrorHand.SetSourceHand(sourceHand);
+        mirrorHand.SetEyeReference(eyeReference);
         mirrorHand.SetEnableMirrorTherapy(enableMirrorTherapy);
     }
 
@@ -71,6 +78,15 @@ public class MirrorTherapyManager : MonoBehaviour
     public void SetSourceHand(SourceHand hand)
     {
         sourceHand = hand;
+        ApplySettings();
+    }
+
+    /// <summary>
+    /// Définit quel oeil est utilisé comme référence pour le plan de miroir
+    /// </summary>
+    public void SetEyeReference(EyeReference eye)
+    {
+        eyeReference = eye;
         ApplySettings();
     }
 
@@ -109,4 +125,5 @@ public class MirrorTherapyManager : MonoBehaviour
     // Propriétés publiques pour accéder à l'état actuel
     public bool IsEnabled => enableMirrorTherapy;
     public SourceHand CurrentSourceHand => sourceHand;
+    public EyeReference CurrentEyeReference => eyeReference;
 }
