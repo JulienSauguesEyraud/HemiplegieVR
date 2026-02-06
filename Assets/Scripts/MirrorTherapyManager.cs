@@ -19,9 +19,22 @@ public class MirrorTherapyManager : MonoBehaviour
     [Tooltip("Choisir quel oeil utiliser comme référence pour le plan de miroir")]
     [SerializeField] private EyeReference eyeReference = EyeReference.CenterEye;
 
+    [Header("Avant-bras")]
+    [Tooltip("Afficher les avant-bras")]
+    [SerializeField] private bool showForearms = true;
+    
+    [Tooltip("Opacité des avant-bras (0 = invisible, 1 = opaque)")]
+    [SerializeField][Range(0f, 1f)] private float forearmOpacity = 0.7f;
+    
+    [Tooltip("Utiliser la transparence pour les avant-bras")]
+    [SerializeField] private bool forearmUseTransparency = true;
+
     private bool lastEnableState;
     private SourceHand lastSourceHand;
     private EyeReference lastEyeReference;
+    private bool lastShowForearms;
+    private float lastForearmOpacity;
+    private bool lastForearmUseTransparency;
 
     void Start()
     {
@@ -39,17 +52,28 @@ public class MirrorTherapyManager : MonoBehaviour
         lastEnableState = enableMirrorTherapy;
         lastSourceHand = sourceHand;
         lastEyeReference = eyeReference;
+        lastShowForearms = showForearms;
+        lastForearmOpacity = forearmOpacity;
+        lastForearmUseTransparency = forearmUseTransparency;
     }
 
     void Update()
     {
         // Détecter les changements dans l'Inspector
-        if (lastEnableState != enableMirrorTherapy || lastSourceHand != sourceHand || lastEyeReference != eyeReference)
+        if (lastEnableState != enableMirrorTherapy || 
+            lastSourceHand != sourceHand || 
+            lastEyeReference != eyeReference ||
+            lastShowForearms != showForearms ||
+            !Mathf.Approximately(lastForearmOpacity, forearmOpacity) ||
+            lastForearmUseTransparency != forearmUseTransparency)
         {
             ApplySettings();
             lastEnableState = enableMirrorTherapy;
             lastSourceHand = sourceHand;
             lastEyeReference = eyeReference;
+            lastShowForearms = showForearms;
+            lastForearmOpacity = forearmOpacity;
+            lastForearmUseTransparency = forearmUseTransparency;
         }
     }
 
@@ -61,6 +85,9 @@ public class MirrorTherapyManager : MonoBehaviour
         mirrorHand.SetSourceHand(sourceHand);
         mirrorHand.SetEyeReference(eyeReference);
         mirrorHand.SetEnableMirrorTherapy(enableMirrorTherapy);
+        mirrorHand.SetShowForearms(showForearms);
+        mirrorHand.SetForearmOpacity(forearmOpacity);
+        mirrorHand.SetForearmUseTransparency(forearmUseTransparency);
     }
 
     /// <summary>
@@ -87,6 +114,33 @@ public class MirrorTherapyManager : MonoBehaviour
     public void SetEyeReference(EyeReference eye)
     {
         eyeReference = eye;
+        ApplySettings();
+    }
+
+    /// <summary>
+    /// Active ou désactive l'affichage des avant-bras
+    /// </summary>
+    public void SetShowForearms(bool show)
+    {
+        showForearms = show;
+        ApplySettings();
+    }
+
+    /// <summary>
+    /// Définit l'opacité des avant-bras
+    /// </summary>
+    public void SetForearmOpacity(float opacity)
+    {
+        forearmOpacity = Mathf.Clamp01(opacity);
+        ApplySettings();
+    }
+
+    /// <summary>
+    /// Définit si la transparence est utilisée pour les avant-bras
+    /// </summary>
+    public void SetForearmUseTransparency(bool useTransparency)
+    {
+        forearmUseTransparency = useTransparency;
         ApplySettings();
     }
 
@@ -122,8 +176,19 @@ public class MirrorTherapyManager : MonoBehaviour
         SetMirrorTherapyEnabled(!enableMirrorTherapy);
     }
 
+    /// <summary>
+    /// Bascule l'affichage des avant-bras
+    /// </summary>
+    public void ToggleForearms()
+    {
+        SetShowForearms(!showForearms);
+    }
+
     // Propriétés publiques pour accéder à l'état actuel
     public bool IsEnabled => enableMirrorTherapy;
     public SourceHand CurrentSourceHand => sourceHand;
     public EyeReference CurrentEyeReference => eyeReference;
+    public bool AreForeArmsVisible => showForearms;
+    public float ForearmOpacity => forearmOpacity;
+    public bool ForearmUseTransparency => forearmUseTransparency;
 }

@@ -8493,14 +8493,24 @@ MonoBehaviour:
   leftHandRoot: {fileID: 1365132202}
   rightInteraction: {fileID: 1262381837}
   leftInteraction: {fileID: 1811858678}
-  centerEye: {fileID: 0}
-  leftEye: {fileID: 0}
-  rightEye: {fileID: 0}
+  rightWrist: {fileID: 0}
+  leftWrist: {fileID: 0}
+  showForearms: 1
+  centerEye: {fileID: 1730345249}
+  leftEye: {fileID: 1600556988}
+  rightEye: {fileID: 269333538}
   eyeReference: 0
   enableMirrorTherapy: 1
   sourceHand: 0
   disableMirrorHandTracking: 1
   minimumHandDistance: 0.05
+  forearmRadius: 0.025
+  forearmMinLength: 0.05
+  forearmMaxLength: 0.3
+  forearmOpacity: 0.7
+  forearmUseTransparency: 1
+  elbowHorizontalOffset: 0.25
+  elbowVerticalOffset: -0.15
 --- !u!114 &791119774
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -8517,6 +8527,9 @@ MonoBehaviour:
   enableMirrorTherapy: 1
   sourceHand: 0
   eyeReference: 0
+  showForearms: 1
+  forearmOpacity: 0.7
+  forearmUseTransparency: 1
 --- !u!1001 &798926254
 PrefabInstance:
   m_ObjectHideFlags: 0

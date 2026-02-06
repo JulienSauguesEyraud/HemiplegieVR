@@ -22,6 +22,14 @@ public class MirrorHand : MonoBehaviour
     [SerializeField] private GameObject rightInteraction;
     [SerializeField] private GameObject leftInteraction;
 
+    [Header("Forearm References")]
+    [Tooltip("Transform du poignet droit (wrist) - cherche automatiquement 'b_r_wrist' si vide")]
+    [SerializeField] private Transform rightWrist;
+    [Tooltip("Transform du poignet gauche (wrist) - cherche automatiquement 'b_l_wrist' si vide")]
+    [SerializeField] private Transform leftWrist;
+    [Tooltip("Active l'affichage des avant-bras")]
+    [SerializeField] private bool showForearms = true;
+
     [Header("Eye References")]
     [Tooltip("L'oeil central (CenterEyeAnchor)")]
     [SerializeField] private Transform centerEye;
@@ -42,6 +50,22 @@ public class MirrorHand : MonoBehaviour
     [Tooltip("Distance minimale entre les mains (empêche les mains de se traverser)")]
     [SerializeField] private float minimumHandDistance = 0.05f;
 
+    [Header("Forearm Settings")]
+    [Tooltip("Rayon de l'avant-bras")]
+    [SerializeField] private float forearmRadius = 0.025f;
+    [Tooltip("Longueur minimale de l'avant-bras")]
+    [SerializeField] private float forearmMinLength = 0.05f;
+    [Tooltip("Longueur maximale de l'avant-bras")]
+    [SerializeField] private float forearmMaxLength = 0.30f;
+    [Tooltip("Opacité des avant-bras (0 = invisible, 1 = opaque)")]
+    [SerializeField][Range(0f, 1f)] private float forearmOpacity = 0.7f;
+    [Tooltip("Utiliser la transparence pour les avant-bras")]
+    [SerializeField] private bool forearmUseTransparency = true;
+    [Tooltip("Offset horizontal du coude depuis la tête (+ = vers l'extérieur)")]
+    [SerializeField] private float elbowHorizontalOffset = 0.25f;
+    [Tooltip("Offset vertical du coude depuis la tête (+ = haut)")]
+    [SerializeField] private float elbowVerticalOffset = -0.15f;
+
     private Dictionary<string, Transform> mirrorJointsByName = new();
     private SkinnedMeshRenderer[] mirrorHandRenderers;
     private Renderer[] mirrorHandAllRenderers;
@@ -51,10 +75,17 @@ public class MirrorHand : MonoBehaviour
     private Vector3 mirrorPlaneNormal;
     private Vector3 mirrorPlanePoint;
 
+    // Avant-bras procéduraux
+    private ProceduralForearm rightForearm;
+    private ProceduralForearm leftForearm;
+    private GameObject rightForearmObj;
+    private GameObject leftForearmObj;
+
     void Start()
     {
         lastSourceHand = sourceHand;
         InitializeMirror();
+        InitializeForearms();
     }
 
     private void InitializeMirror()
@@ -73,6 +104,185 @@ public class MirrorHand : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Initialise les avant-bras procéduraux
+    /// </summary>
+    private void InitializeForearms()
+    {
+        // Chercher automatiquement les poignets si non assignés
+        if (rightWrist == null && rightHandRoot != null)
+        {
+            rightWrist = FindWrist(rightHandRoot, "right");
+        }
+        if (leftWrist == null && leftHandRoot != null)
+        {
+            leftWrist = FindWrist(leftHandRoot, "left");
+        }
+
+        // Récupérer le matériau des mains
+        Material handMaterial = GetHandMaterial();
+
+        // Créer l'avant-bras droit
+        if (rightWrist != null)
+        {
+            rightForearmObj = new GameObject("RightForearm");
+            rightForearmObj.transform.SetParent(transform);
+            rightForearm = rightForearmObj.AddComponent<ProceduralForearm>();
+            
+            ConfigureForearm(rightForearm, rightWrist, elbowHorizontalOffset, handMaterial);
+        }
+
+        // Créer l'avant-bras gauche
+        if (leftWrist != null)
+        {
+            leftForearmObj = new GameObject("LeftForearm");
+            leftForearmObj.transform.SetParent(transform);
+            leftForearm = leftForearmObj.AddComponent<ProceduralForearm>();
+            
+            ConfigureForearm(leftForearm, leftWrist, -elbowHorizontalOffset, handMaterial); // Négatif pour la main gauche
+        }
+
+        UpdateForearmVisibility();
+    }
+
+    /// <summary>
+    /// Récupère le matériau des mains pour l'appliquer aux avant-bras
+    /// </summary>
+    private Material GetHandMaterial()
+    {
+        // Chercher dans les deux mains
+        Transform[] hands = new Transform[] { rightHandRoot, leftHandRoot };
+        
+        foreach (Transform hand in hands)
+        {
+            if (hand == null)
+                continue;
+
+            // Chercher un SkinnedMeshRenderer avec un matériau
+            SkinnedMeshRenderer[] renderers = hand.GetComponentsInChildren<SkinnedMeshRenderer>();
+            foreach (var renderer in renderers)
+            {
+                if (renderer != null && renderer.sharedMaterial != null)
+                {
+                    Debug.Log($"[MirrorHand] Matériau trouvé sur {renderer.gameObject.name}: {renderer.sharedMaterial.name}");
+                    return renderer.sharedMaterial;
+                }
+            }
+
+            // Chercher un MeshRenderer en fallback
+            MeshRenderer[] meshRenderers = hand.GetComponentsInChildren<MeshRenderer>();
+            foreach (var renderer in meshRenderers)
+            {
+                if (renderer != null && renderer.sharedMaterial != null)
+                {
+                    Debug.Log($"[MirrorHand] Matériau trouvé sur {renderer.gameObject.name}: {renderer.sharedMaterial.name}");
+                    return renderer.sharedMaterial;
+                }
+            }
+        }
+
+        Debug.LogWarning("[MirrorHand] Aucun matériau trouvé sur les mains. Utilisation du matériau par défaut.");
+        return null;
+    }
+
+    /// <summary>
+    /// Configure un avant-bras procédural
+    /// </summary>
+    private void ConfigureForearm(ProceduralForearm forearm, Transform wrist, float horizontalOffset, Material handMaterial)
+    {
+        forearm.SetWrist(wrist);
+        forearm.SetHeadReference(GetSelectedEye());
+        
+        // Définir le matériau de la main
+        if (handMaterial != null)
+        {
+            forearm.SetHandMaterial(handMaterial);
+        }
+        
+        // Configuration via réflexion pour éviter les erreurs si les champs ne sont pas publics
+        var forearmType = forearm.GetType();
+        
+        SetPrivateField(forearm, "radius", forearmRadius);
+        SetPrivateField(forearm, "minLength", forearmMinLength);
+        SetPrivateField(forearm, "maxLength", forearmMaxLength);
+        SetPrivateField(forearm, "opacity", forearmOpacity);
+        SetPrivateField(forearm, "useTransparency", forearmUseTransparency);
+        SetPrivateField(forearm, "elbowHorizontalOffset", horizontalOffset);
+        SetPrivateField(forearm, "elbowVerticalOffset", elbowVerticalOffset);
+    }
+
+    /// <summary>
+    /// Définit un champ privé via réflexion
+    /// </summary>
+    private void SetPrivateField(object obj, string fieldName, object value)
+    {
+        var field = obj.GetType().GetField(fieldName, 
+            System.Reflection.BindingFlags.NonPublic | 
+            System.Reflection.BindingFlags.Instance);
+        if (field != null)
+        {
+            field.SetValue(obj, value);
+        }
+    }
+
+    /// <summary>
+    /// Cherche le transform du poignet dans la hiérarchie de la main
+    /// </summary>
+    private Transform FindWrist(Transform handRoot, string side)
+    {
+        // Patterns de noms courants pour le poignet
+        string[] wristPatterns = new string[]
+        {
+            $"b_{side[0]}_wrist",  // b_r_wrist ou b_l_wrist
+            $"{side}_wrist",        // right_wrist ou left_wrist
+            $"Wrist_{side[0].ToString().ToUpper()}", // Wrist_R ou Wrist_L
+            "wrist",
+            "Wrist"
+        };
+
+        foreach (Transform child in handRoot.GetComponentsInChildren<Transform>())
+        {
+            string childName = child.name.ToLower();
+            foreach (string pattern in wristPatterns)
+            {
+                if (childName.Contains(pattern.ToLower()))
+                {
+                    Debug.Log($"[MirrorHand] Poignet {side} trouvé : {child.name}");
+                    return child;
+                }
+            }
+        }
+
+        Debug.LogWarning($"[MirrorHand] Poignet {side} non trouvé. Recherchez dans la hiérarchie.");
+        return null;
+    }
+
+    /// <summary>
+    /// Met à jour la visibilité des avant-bras selon l'état du miroir
+    /// </summary>
+    private void UpdateForearmVisibility()
+    {
+        if (!showForearms || !enableMirrorTherapy)
+        {
+            // Masquer les deux avant-bras si désactivé
+            if (rightForearm != null) rightForearm.SetVisible(false);
+            if (leftForearm != null) leftForearm.SetVisible(false);
+            return;
+        }
+
+        // Afficher l'avant-bras source et miroir
+        if (sourceHand == SourceHand.Right)
+        {
+            if (rightForearm != null) rightForearm.SetVisible(true);
+            if (leftForearm != null) leftForearm.SetVisible(true);
+        }
+        else
+        {
+            if (leftForearm != null) leftForearm.SetVisible(true);
+            if (rightForearm != null) rightForearm.SetVisible(true);
+        }
+    }
+
     void LateUpdate()
     {
         // Vérifier si la main source a changé
@@ -80,6 +290,7 @@ public class MirrorHand : MonoBehaviour
         {
             lastSourceHand = sourceHand;
             InitializeMirror();
+            UpdateForearmVisibility();
         }
 
         if (enableMirrorTherapy)
@@ -87,6 +298,7 @@ public class MirrorHand : MonoBehaviour
             UpdateMirrorPlane();
             ForceShowMirrorHand();
             MirrorHands();
+            UpdateForearmVisibility();
         }
     }
 
@@ -246,6 +458,7 @@ public class MirrorHand : MonoBehaviour
         {
             InitializeMirror();
         }
+        UpdateForearmVisibility();
     }
 
     public void SetSourceHand(SourceHand hand)
@@ -254,17 +467,55 @@ public class MirrorHand : MonoBehaviour
         {
             sourceHand = hand;
             InitializeMirror();
+            UpdateForearmVisibility();
         }
     }
 
     public void SetEyeReference(EyeReference eye)
     {
         eyeReference = eye;
+        
+        // Mettre à jour la référence de tête pour les avant-bras
+        Transform selectedEye = GetSelectedEye();
+        if (rightForearm != null) rightForearm.SetHeadReference(selectedEye);
+        if (leftForearm != null) leftForearm.SetHeadReference(selectedEye);
+    }
+
+    /// <summary>
+    /// Active ou désactive l'affichage des avant-bras
+    /// </summary>
+    public void SetShowForearms(bool show)
+    {
+        showForearms = show;
+        UpdateForearmVisibility();
+    }
+
+    /// <summary>
+    /// Définit l'opacité des avant-bras
+    /// </summary>
+    public void SetForearmOpacity(float opacity)
+    {
+        forearmOpacity = Mathf.Clamp01(opacity);
+        if (rightForearm != null) rightForearm.SetOpacity(forearmOpacity);
+        if (leftForearm != null) leftForearm.SetOpacity(forearmOpacity);
+    }
+
+    /// <summary>
+    /// Définit si les avant-bras utilisent la transparence
+    /// </summary>
+    public void SetForearmUseTransparency(bool useTransparency)
+    {
+        forearmUseTransparency = useTransparency;
+        // Réinitialiser les avant-bras pour appliquer le changement
+        if (rightForearmObj != null) Destroy(rightForearmObj);
+        if (leftForearmObj != null) Destroy(leftForearmObj);
+        InitializeForearms();
     }
 
     public bool IsEnabled => enableMirrorTherapy;
     public SourceHand CurrentSourceHand => sourceHand;
     public EyeReference CurrentEyeReference => eyeReference;
+    public bool AreForeArmsVisible => showForearms;
 
     private void ForceShowMirrorHand()
     {
