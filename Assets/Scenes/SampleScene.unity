@@ -9159,10 +9159,14 @@ MonoBehaviour:
   forearmRadius: 0.025
   forearmMinLength: 0.05
   forearmMaxLength: 0.3
+  forearmWristOffset: 0.01
   forearmOpacity: 0.7
   forearmUseTransparency: 1
   elbowHorizontalOffset: 0.25
   elbowVerticalOffset: -0.15
+  wristRotationInfluence: 0.08
+  wristRotationVerticalInfluence: 0.04
+  elbowSmoothing: 0.7
 --- !u!114 &791119774
 MonoBehaviour:
   m_ObjectHideFlags: 0

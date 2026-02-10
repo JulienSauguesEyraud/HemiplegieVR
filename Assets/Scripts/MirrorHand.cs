@@ -57,6 +57,8 @@ public class MirrorHand : MonoBehaviour
     [SerializeField] private float forearmMinLength = 0.05f;
     [Tooltip("Longueur maximale de l'avant-bras")]
     [SerializeField] private float forearmMaxLength = 0.30f;
+    [Tooltip("Distance de recul depuis le poignet (pour éviter que l'avant-bras rentre dans le poignet)")]
+    [SerializeField] private float forearmWristOffset = 0.01f;
     [Tooltip("Opacité des avant-bras (0 = invisible, 1 = opaque)")]
     [SerializeField][Range(0f, 1f)] private float forearmOpacity = 0.7f;
     [Tooltip("Utiliser la transparence pour les avant-bras")]
@@ -65,6 +67,14 @@ public class MirrorHand : MonoBehaviour
     [SerializeField] private float elbowHorizontalOffset = 0.25f;
     [Tooltip("Offset vertical du coude depuis la tête (+ = haut)")]
     [SerializeField] private float elbowVerticalOffset = -0.15f;
+    
+    [Header("Wrist Rotation Effects")]
+    [Tooltip("Intensité du décalage latéral quand on tourne le poignet (0 = pas de décalage)")]
+    [SerializeField] private float wristRotationInfluence = 0.08f;
+    [Tooltip("Intensité du décalage vertical quand on tourne le poignet")]
+    [SerializeField] private float wristRotationVerticalInfluence = 0.04f;
+    [Tooltip("Lissage du mouvement du coude (plus élevé = plus fluide)")]
+    [SerializeField][Range(0f, 0.95f)] private float elbowSmoothing = 0.7f;
 
     private Dictionary<string, Transform> mirrorJointsByName = new();
     private SkinnedMeshRenderer[] mirrorHandRenderers;
@@ -205,10 +215,18 @@ public class MirrorHand : MonoBehaviour
         SetPrivateField(forearm, "radius", forearmRadius);
         SetPrivateField(forearm, "minLength", forearmMinLength);
         SetPrivateField(forearm, "maxLength", forearmMaxLength);
+        SetPrivateField(forearm, "wristOffset", forearmWristOffset);
         SetPrivateField(forearm, "opacity", forearmOpacity);
         SetPrivateField(forearm, "useTransparency", forearmUseTransparency);
         SetPrivateField(forearm, "elbowHorizontalOffset", horizontalOffset);
         SetPrivateField(forearm, "elbowVerticalOffset", elbowVerticalOffset);
+        SetPrivateField(forearm, "wristRotationInfluence", wristRotationInfluence);
+        SetPrivateField(forearm, "wristRotationVerticalInfluence", wristRotationVerticalInfluence);
+        SetPrivateField(forearm, "elbowSmoothing", elbowSmoothing);
+        
+        // Nouveaux paramètres de rotation du poignet
+        SetPrivateField(forearm, "wristRotationOffset", 0f);
+        SetPrivateField(forearm, "wristRotationVerticalOffset", 0f);
     }
 
     /// <summary>

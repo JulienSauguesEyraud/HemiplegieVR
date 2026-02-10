@@ -29,6 +29,9 @@ public class ProceduralForearm : MonoBehaviour
     [Tooltip("Longueur estimée de l'avant-bras (utilisée si elbow n'est pas fourni)")]
     [SerializeField] private float estimatedLength = 0.25f;
     
+    [Tooltip("Distance de recul depuis le poignet (pour éviter que l'avant-bras rentre dans le poignet)")]
+    [SerializeField] private float wristOffset = 0.01f;
+    
     [Tooltip("Offset horizontal depuis la tête pour estimer le coude (+ = droite)")]
     [SerializeField] private float elbowHorizontalOffset = 0.25f;
     
@@ -37,6 +40,16 @@ public class ProceduralForearm : MonoBehaviour
     
     [Tooltip("Offset avant/arrière depuis la tête pour estimer le coude (+ = avant)")]
     [SerializeField] private float elbowDepthOffset = 0.0f;
+
+    [Header("Wrist Rotation Adjustment")]
+    [Tooltip("Intensité du décalage latéral basé sur la rotation du poignet (0 = pas de décalage)")]
+    [SerializeField] private float wristRotationInfluence = 0.08f;
+    
+    [Tooltip("Intensité du décalage vertical basé sur la rotation du poignet")]
+    [SerializeField] private float wristRotationVerticalInfluence = 0.04f;
+    
+    [Tooltip("Lissage du mouvement du coude (plus élevé = plus fluide mais moins réactif)")]
+    [SerializeField][Range(0f, 0.95f)] private float elbowSmoothing = 0.7f;
 
     [Header("Material Settings")]
     [Tooltip("Matériau à utiliser pour l'avant-bras (copié depuis les mains)")]
@@ -52,7 +65,10 @@ public class ProceduralForearm : MonoBehaviour
     private MeshRenderer meshRenderer;
     private Material forearmMaterial;
     private Vector3 estimatedElbowPosition;
+    private Vector3 smoothedElbowPosition;
+    private Quaternion previousWristRotation;
     private bool useEstimatedElbow = false;
+    private bool isInitialized = false;
 
     void Start()
     {
@@ -62,6 +78,11 @@ public class ProceduralForearm : MonoBehaviour
         if (useEstimatedElbow && headReference == null)
         {
             Debug.LogWarning("[ProceduralForearm] Ni coude ni référence tête fournie. L'avant-bras ne s'affichera pas correctement.");
+        }
+
+        if (wrist != null)
+        {
+            previousWristRotation = wrist.rotation;
         }
     }
 
@@ -152,16 +173,79 @@ public class ProceduralForearm : MonoBehaviour
     }
 
     /// <summary>
+    /// Calcule le décalage du coude basé sur la rotation du poignet
+    /// </summary>
+    private Vector3 GetWristRotationOffset()
+    {
+        if (wrist == null || headReference == null)
+            return Vector3.zero;
+
+        // Calculer l'axe de rotation (l'axe de l'avant-bras)
+        Vector3 forearmAxis = (wrist.position - estimatedElbowPosition).normalized;
+        
+        // Obtenir l'axe "up" du poignet dans l'espace monde
+        Vector3 wristUp = wrist.up;
+        
+        // Obtenir l'axe "right" du poignet dans l'espace monde
+        Vector3 wristRight = wrist.right;
+        
+        // Calculer l'angle de rotation du poignet autour de l'axe de l'avant-bras
+        // En projetant wristRight sur le plan perpendiculaire à l'avant-bras
+        Vector3 projectedRight = Vector3.ProjectOnPlane(wristRight, forearmAxis);
+        Vector3 projectedUp = Vector3.ProjectOnPlane(wristUp, forearmAxis);
+        
+        // Calculer le vecteur de référence (direction vers l'extérieur depuis la tête)
+        Vector3 headToWrist = (wrist.position - headReference.position).normalized;
+        Vector3 outwardDirection = Vector3.ProjectOnPlane(headToWrist, forearmAxis);
+        
+        if (outwardDirection.sqrMagnitude < 0.001f)
+            return Vector3.zero;
+        
+        outwardDirection.Normalize();
+        
+        // Calculer l'angle de rotation du poignet
+        float rotationAngle = Vector3.SignedAngle(outwardDirection, projectedUp, forearmAxis);
+        
+        // Normaliser l'angle entre -180 et 180
+        if (rotationAngle > 180f) rotationAngle -= 360f;
+        if (rotationAngle < -180f) rotationAngle += 360f;
+        
+        // Convertir l'angle en radians pour les calculs
+        float rotationRadians = rotationAngle * Mathf.Deg2Rad;
+        
+        // Calculer le décalage latéral (perpendiculaire à l'avant-bras et à la verticale)
+        Vector3 lateralAxis = Vector3.Cross(forearmAxis, Vector3.up).normalized;
+        if (lateralAxis.sqrMagnitude < 0.001f)
+        {
+            // Fallback si l'avant-bras est vertical
+            lateralAxis = Vector3.Cross(forearmAxis, headReference.forward).normalized;
+        }
+        
+        // Le décalage latéral suit un pattern sinusoïdal basé sur la rotation
+        float lateralOffset = Mathf.Sin(rotationRadians) * wristRotationInfluence;
+        
+        // Le décalage vertical suit aussi la rotation (légèrement différent)
+        float verticalOffset = -Mathf.Abs(Mathf.Sin(rotationRadians * 0.5f)) * wristRotationVerticalInfluence;
+        
+        // Combiner les offsets
+        Vector3 totalOffset = lateralAxis * lateralOffset + Vector3.up * verticalOffset;
+        
+        return totalOffset;
+    }
+
+    /// <summary>
     /// Estime ou récupère la position du coude
     /// </summary>
     private void UpdateElbowPosition()
     {
+        Vector3 targetElbowPosition;
+        
         if (useEstimatedElbow)
         {
             if (headReference != null)
             {
                 // Estimer la position du coude à partir de la tête
-                estimatedElbowPosition = headReference.position
+                targetElbowPosition = headReference.position
                     + headReference.right * elbowHorizontalOffset
                     + headReference.up * elbowVerticalOffset
                     + headReference.forward * elbowDepthOffset;
@@ -169,12 +253,38 @@ public class ProceduralForearm : MonoBehaviour
             else
             {
                 // Fallback : position simple derrière le poignet
-                estimatedElbowPosition = wrist.position - wrist.forward * estimatedLength;
+                targetElbowPosition = wrist.position - wrist.forward * estimatedLength;
             }
         }
         else
         {
-            estimatedElbowPosition = elbow.position;
+            targetElbowPosition = elbow.position;
+        }
+        
+        // Stocker la position de base avant d'appliquer le décalage
+        estimatedElbowPosition = targetElbowPosition;
+        
+        // Appliquer le décalage basé sur la rotation du poignet
+        Vector3 rotationOffset = GetWristRotationOffset();
+        targetElbowPosition += rotationOffset;
+        
+        // Initialiser la position lissée lors de la première frame
+        if (!isInitialized)
+        {
+            smoothedElbowPosition = targetElbowPosition;
+            isInitialized = true;
+        }
+        
+        // Lisser le mouvement du coude pour éviter les saccades
+        smoothedElbowPosition = Vector3.Lerp(smoothedElbowPosition, targetElbowPosition, 1f - elbowSmoothing);
+        
+        // Mettre à jour la position finale du coude
+        estimatedElbowPosition = smoothedElbowPosition;
+        
+        // Sauvegarder la rotation actuelle pour la prochaine frame
+        if (wrist != null)
+        {
+            previousWristRotation = wrist.rotation;
         }
     }
 
@@ -189,8 +299,18 @@ public class ProceduralForearm : MonoBehaviour
         Vector3 wristPos = wrist.position;
         Vector3 elbowPos = estimatedElbowPosition;
 
-        // Direction et longueur de l'avant-bras
+        // Direction de l'avant-bras
         Vector3 direction = elbowPos - wristPos;
+        float totalLength = direction.magnitude;
+
+        if (totalLength < 0.001f || direction == Vector3.zero)
+            return;
+
+        // Calculer le point de départ de l'avant-bras (reculé depuis le poignet)
+        Vector3 forearmStart = wristPos + direction.normalized * wristOffset;
+        
+        // Recalculer la direction et la longueur depuis le nouveau point de départ
+        direction = elbowPos - forearmStart;
         float length = direction.magnitude;
 
         // Limiter la longueur entre min et max
@@ -199,11 +319,11 @@ public class ProceduralForearm : MonoBehaviour
         // Recalculer la position du coude avec la longueur limitée
         if (direction != Vector3.zero)
         {
-            elbowPos = wristPos + direction.normalized * length;
+            elbowPos = forearmStart + direction.normalized * length;
         }
 
-        // Position au milieu de l'avant-bras
-        forearmMesh.transform.position = wristPos + (elbowPos - wristPos) * 0.5f;
+        // Position au milieu de l'avant-bras (entre le point de départ reculé et le coude)
+        forearmMesh.transform.position = forearmStart + (elbowPos - forearmStart) * 0.5f;
 
         // Rotation pour pointer vers le coude
         // Le cylindre Unity pointe vers le haut (Y), on doit donc le tourner
