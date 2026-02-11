@@ -14,7 +14,7 @@ public class MirrorTherapyManager : MonoBehaviour
     [SerializeField] private bool enableMirrorTherapy = true;
     
     [Tooltip("Choisir quelle main est la source (l'autre sera le miroir)")]
-    [SerializeField] private SourceHand sourceHand = SourceHand.Right;
+    public SourceHand sourceHand = SourceHand.Right;
 
     [Tooltip("Choisir quel oeil utiliser comme référence pour le plan de miroir")]
     [SerializeField] private EyeReference eyeReference = EyeReference.CenterEye;
