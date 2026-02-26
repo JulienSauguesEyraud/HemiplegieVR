@@ -21,7 +21,7 @@ public class MirrorTherapyManager : MonoBehaviour
 
     [Header("Avant-bras")]
     [Tooltip("Afficher les avant-bras")]
-    [SerializeField] private bool showForearms = true;
+    public bool showForearms = true;
     
     [Tooltip("Opacité des avant-bras (0 = invisible, 1 = opaque)")]
     [SerializeField][Range(0f, 1f)] private float forearmOpacity = 0.7f;

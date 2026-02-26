@@ -65,4 +65,9 @@ public class ManagerUI : MonoBehaviour
         objectMoveButton.interactable = false;
         freeMoveButton.interactable = true;
     }
+
+    public void setActiveForearms(bool active)
+    {
+        mirrorManager.showForearms = active;
+    }
 }
