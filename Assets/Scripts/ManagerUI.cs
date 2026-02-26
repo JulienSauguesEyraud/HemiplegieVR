@@ -68,6 +68,6 @@ public class ManagerUI : MonoBehaviour
 
     public void setActiveForearms(bool active)
     {
-        mirrorManager.showForearms = active;
+        mirrorManager.SetShowForearms(active);
     }
 }

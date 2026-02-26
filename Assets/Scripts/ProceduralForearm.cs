@@ -69,6 +69,7 @@ public class ProceduralForearm : MonoBehaviour
     private Quaternion previousWristRotation;
     private bool useEstimatedElbow = false;
     private bool isInitialized = false;
+    private bool isVisible = true;
 
     void Start()
     {
@@ -88,6 +89,14 @@ public class ProceduralForearm : MonoBehaviour
 
     void LateUpdate()
     {
+        // Si l'avant-bras est masqué, ne rien faire
+        if (!isVisible)
+        {
+            if (forearmMesh != null && forearmMesh.activeSelf)
+                forearmMesh.SetActive(false);
+            return;
+        }
+
         if (wrist == null || !wrist.gameObject.activeInHierarchy)
         {
             if (forearmMesh != null)
@@ -426,6 +435,7 @@ public class ProceduralForearm : MonoBehaviour
     /// </summary>
     public void SetVisible(bool visible)
     {
+        isVisible = visible;
         if (forearmMesh != null)
         {
             forearmMesh.SetActive(visible);

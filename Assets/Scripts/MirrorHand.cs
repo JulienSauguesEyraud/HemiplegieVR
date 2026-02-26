@@ -316,8 +316,10 @@ public class MirrorHand : MonoBehaviour
             UpdateMirrorPlane();
             ForceShowMirrorHand();
             MirrorHands();
-            UpdateForearmVisibility();
         }
+        
+        // Toujours mettre à jour la visibilité des forearms
+        UpdateForearmVisibility();
     }
 
     /// <summary>
