@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -24,6 +25,9 @@ public class ManagerUI : MonoBehaviour
     [Header("Entities")]
     [SerializeField] private GameObject ObjectToMove;
 
+    [SerializeField] private GameObject[] InteractableObjects;
+    private List<Vector3> initialsPositions = new();
+    private List<Quaternion> initialsRotations = new();
 
     private void Start()
     {
@@ -34,6 +38,12 @@ public class ManagerUI : MonoBehaviour
         freeMoveButton.interactable = false;
         ObjectToMove.transform.position = freeSpawn.position;
         ObjectToMove.transform.rotation = freeSpawn.rotation;
+
+        foreach (var obj in InteractableObjects)
+        {
+            initialsPositions.Add(obj.transform.position);
+            initialsRotations.Add(obj.transform.rotation);
+        }
     }
 
     public void OnUseLeftArmClicked()
@@ -69,5 +79,16 @@ public class ManagerUI : MonoBehaviour
     public void setActiveForearms(bool active)
     {
         mirrorManager.SetShowForearms(active);
+    }
+
+    public void OnResetObjectClicked()
+    {
+        for (int i = 0; i < InteractableObjects.Length; i++)
+        {
+            InteractableObjects[i].GetComponent<Rigidbody>().useGravity = false;
+            InteractableObjects[i].transform.position = initialsPositions[i];
+            InteractableObjects[i].transform.rotation = initialsRotations[i];
+            InteractableObjects[i].GetComponent<Rigidbody>().useGravity = true;
+        }
     }
 }
