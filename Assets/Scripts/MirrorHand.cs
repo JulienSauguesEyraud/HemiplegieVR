@@ -537,6 +537,12 @@ public class MirrorHand : MonoBehaviour
     public EyeReference CurrentEyeReference => eyeReference;
     public bool AreForeArmsVisible => showForearms;
 
+    public void SetForearmMaterial(Material material)
+    {
+        if (rightForearm != null) rightForearm.SetHandMaterial(material);
+        if (leftForearm != null) leftForearm.SetHandMaterial(material);
+    }
+
     private void ForceShowMirrorHand()
     {
         var mirrorRoot = GetMirrorHandRoot();

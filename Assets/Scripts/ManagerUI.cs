@@ -29,6 +29,12 @@ public class ManagerUI : MonoBehaviour
     private List<Vector3> initialsPositions = new();
     private List<Quaternion> initialsRotations = new();
 
+    [SerializeField] SkinnedMeshRenderer leftHandRenderer;
+    [SerializeField] SkinnedMeshRenderer rightHandRenderer;
+
+    [Header("Panel de couleur")]
+    [SerializeField] private GameObject panelColor;
+
     private void Start()
     {
         useLeftArm.interactable = true;
@@ -90,5 +96,17 @@ public class ManagerUI : MonoBehaviour
             InteractableObjects[i].transform.rotation = initialsRotations[i];
             InteractableObjects[i].GetComponent<Rigidbody>().useGravity = true;
         }
+    }
+
+    public void OnShowColor()
+    {
+        panelColor.SetActive(true);
+    }
+    public void OnColorClicked(Material color)
+    {
+        leftHandRenderer.material = color;
+        rightHandRenderer.material = color;
+        mirrorManager.SetForearmMaterial(color);
+        panelColor.SetActive(false);
     }
 }

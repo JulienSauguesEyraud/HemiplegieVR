@@ -191,4 +191,12 @@ public class MirrorTherapyManager : MonoBehaviour
     public bool AreForeArmsVisible => showForearms;
     public float ForearmOpacity => forearmOpacity;
     public bool ForearmUseTransparency => forearmUseTransparency;
+
+    public void SetForearmMaterial(Material material)
+    {
+        if (mirrorHand != null)
+        {
+            mirrorHand.SetForearmMaterial(material);
+        }
+    }
 }
