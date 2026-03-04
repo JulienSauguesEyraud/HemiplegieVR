@@ -15,6 +15,10 @@ public class ManagerUI : MonoBehaviour
     [SerializeField] private Button freeMoveButton;
     [SerializeField] private Button objectMoveButton;
 
+    [Header("Pour les objets interactifs")]
+    [SerializeField] private Button resetObjectButton;
+
+    [Header("Divers")]
     [Header("Managers")]
     [SerializeField] private MirrorTherapyManager mirrorManager;
 
@@ -25,10 +29,12 @@ public class ManagerUI : MonoBehaviour
     [Header("Entities")]
     [SerializeField] private GameObject ObjectToMove;
 
+    [Header("Objets interactifs")]
     [SerializeField] private GameObject[] InteractableObjects;
     private List<Vector3> initialsPositions = new();
     private List<Quaternion> initialsRotations = new();
 
+    [Header("Rendu des mains")]
     [SerializeField] SkinnedMeshRenderer leftHandRenderer;
     [SerializeField] SkinnedMeshRenderer rightHandRenderer;
 
@@ -44,6 +50,8 @@ public class ManagerUI : MonoBehaviour
         freeMoveButton.interactable = false;
         ObjectToMove.transform.position = freeSpawn.position;
         ObjectToMove.transform.rotation = freeSpawn.rotation;
+
+        resetObjectButton.gameObject.SetActive(false);
 
         foreach (var obj in InteractableObjects)
         {
@@ -72,6 +80,7 @@ public class ManagerUI : MonoBehaviour
         ObjectToMove.transform.rotation = freeSpawn.rotation;
         objectMoveButton.interactable = true;
         freeMoveButton.interactable = false;
+        resetObjectButton.gameObject.SetActive(false);
     }
 
     public void OnObjectMoveClicked()
@@ -80,6 +89,7 @@ public class ManagerUI : MonoBehaviour
         ObjectToMove.transform.rotation = ObjectSpawn.rotation;
         objectMoveButton.interactable = false;
         freeMoveButton.interactable = true;
+        resetObjectButton.gameObject.SetActive(true);
     }
 
     public void setActiveForearms(bool active)
@@ -102,6 +112,7 @@ public class ManagerUI : MonoBehaviour
     {
         panelColor.SetActive(true);
     }
+
     public void OnColorClicked(Material color)
     {
         leftHandRenderer.material = color;
