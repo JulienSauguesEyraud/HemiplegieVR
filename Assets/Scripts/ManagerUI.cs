@@ -15,10 +15,6 @@ public class ManagerUI : MonoBehaviour
     [SerializeField] private Button freeMoveButton;
     [SerializeField] private Button objectMoveButton;
 
-    [Header("Pour les objets interactifs")]
-    [SerializeField] private Button resetObjectButton;
-    [SerializeField] private Button showObjectsButton;
-
     [Header("Divers")]
     [Header("Managers")]
     [SerializeField] private MirrorTherapyManager mirrorManager;
@@ -33,6 +29,7 @@ public class ManagerUI : MonoBehaviour
     [Header("Objets interactifs")]
     [SerializeField] private GameObject[] InteractableObjects;
     [SerializeField] private Transform MovePosition;
+    [SerializeField] private GameObject objectSectionUI;
     [SerializeField] private GameObject panelObjects;
     private Dictionary<GameObject, (Vector3 position, Quaternion rotation)> initialTransforms = new();
     private GameObject ObjectToMove;
@@ -54,8 +51,9 @@ public class ManagerUI : MonoBehaviour
         camPlayer.transform.position = freeSpawn.position;
         camPlayer.transform.rotation = freeSpawn.rotation;
 
-        resetObjectButton.gameObject.SetActive(false);
-        showObjectsButton.gameObject.SetActive(false);
+        panelObjects.SetActive(false);
+        panelColor.SetActive(false);
+        objectSectionUI.SetActive(false);
 
         foreach (var obj in InteractableObjects)
         {
@@ -72,6 +70,8 @@ public class ManagerUI : MonoBehaviour
         mirrorManager.sourceHand = SourceHand.Left;
         useLeftArm.interactable = false;
         useRightArm.interactable = true;
+        panelObjects.SetActive(false);
+        panelColor.SetActive(false);
     }
 
     public void OnUseRightArmClicked()
@@ -79,10 +79,14 @@ public class ManagerUI : MonoBehaviour
         mirrorManager.sourceHand = SourceHand.Right;
         useLeftArm.interactable = true;
         useRightArm.interactable = false;
+        panelObjects.SetActive(false);
+        panelColor.SetActive(false);
     }
     public void setActiveForearms(bool active)
     {
         mirrorManager.SetShowForearms(active);
+        panelObjects.SetActive(false);
+        panelColor.SetActive(false);
     }
 
     public void OnFreeMoveClicked()
@@ -91,7 +95,9 @@ public class ManagerUI : MonoBehaviour
         camPlayer.transform.rotation = freeSpawn.rotation;
         objectMoveButton.interactable = true;
         freeMoveButton.interactable = false;
-        resetObjectButton.gameObject.SetActive(false);
+        objectSectionUI.SetActive(false);
+        panelColor.SetActive(false);
+        panelObjects.SetActive(false);
     }
 
     public void OnObjectMoveClicked()
@@ -100,13 +106,14 @@ public class ManagerUI : MonoBehaviour
         camPlayer.transform.rotation = ObjectSpawn.rotation;
         objectMoveButton.interactable = false;
         freeMoveButton.interactable = true;
-        resetObjectButton.gameObject.SetActive(true);
-        showObjectsButton.gameObject.SetActive(true);
+        objectSectionUI.SetActive(true);
+        panelColor.SetActive(false);
     }
 
     public void OnShowObjects()
     {
         panelObjects.SetActive(true);
+        panelColor.SetActive(false);
     }
 
     public void OnSetObjectToMove(GameObject objectToMove)
@@ -123,19 +130,16 @@ public class ManagerUI : MonoBehaviour
 
     public void OnResetObjectClicked()
     {
-        foreach (var obj in InteractableObjects)
-        {
-            if (initialTransforms.TryGetValue(obj, out var transformData))
-            {
-                obj.transform.position = transformData.position;
-                obj.transform.rotation = transformData.rotation;
-            }
-        }
+        ObjectToMove.transform.position = MovePosition.position;
+        ObjectToMove.transform.rotation = initialTransforms[ObjectToMove].rotation;
+        panelObjects.SetActive(false);
+        panelColor.SetActive(false);
     }
 
     public void OnShowColor()
     {
         panelColor.SetActive(true);
+        panelObjects.SetActive(false);
     }
 
     public void OnColorClicked(Material color)
