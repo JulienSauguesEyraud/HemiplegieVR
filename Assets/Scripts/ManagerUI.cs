@@ -17,6 +17,7 @@ public class ManagerUI : MonoBehaviour
 
     [Header("Pour les objets interactifs")]
     [SerializeField] private Button resetObjectButton;
+    [SerializeField] private Button showObjectsButton;
 
     [Header("Divers")]
     [Header("Managers")]
@@ -27,12 +28,14 @@ public class ManagerUI : MonoBehaviour
     [SerializeField] private Transform ObjectSpawn;
 
     [Header("Entities")]
-    [SerializeField] private GameObject ObjectToMove;
+    [SerializeField] private GameObject camPlayer;
 
     [Header("Objets interactifs")]
     [SerializeField] private GameObject[] InteractableObjects;
-    private List<Vector3> initialsPositions = new();
-    private List<Quaternion> initialsRotations = new();
+    [SerializeField] private Transform MovePosition;
+    [SerializeField] private GameObject panelObjects;
+    private Dictionary<GameObject, (Vector3 position, Quaternion rotation)> initialTransforms = new();
+    private GameObject ObjectToMove;
 
     [Header("Rendu des mains")]
     [SerializeField] SkinnedMeshRenderer leftHandRenderer;
@@ -48,16 +51,20 @@ public class ManagerUI : MonoBehaviour
 
         objectMoveButton.interactable = true;
         freeMoveButton.interactable = false;
-        ObjectToMove.transform.position = freeSpawn.position;
-        ObjectToMove.transform.rotation = freeSpawn.rotation;
+        camPlayer.transform.position = freeSpawn.position;
+        camPlayer.transform.rotation = freeSpawn.rotation;
 
         resetObjectButton.gameObject.SetActive(false);
+        showObjectsButton.gameObject.SetActive(false);
 
         foreach (var obj in InteractableObjects)
         {
-            initialsPositions.Add(obj.transform.position);
-            initialsRotations.Add(obj.transform.rotation);
+            initialTransforms[obj] = (obj.transform.position, obj.transform.rotation);
         }
+
+        ObjectToMove = InteractableObjects[0];
+        ObjectToMove.transform.position = MovePosition.position;
+        ObjectToMove.transform.rotation = MovePosition.rotation;
     }
 
     public void OnUseLeftArmClicked()
@@ -73,11 +80,15 @@ public class ManagerUI : MonoBehaviour
         useLeftArm.interactable = true;
         useRightArm.interactable = false;
     }
+    public void setActiveForearms(bool active)
+    {
+        mirrorManager.SetShowForearms(active);
+    }
 
     public void OnFreeMoveClicked()
     {
-        ObjectToMove.transform.position = freeSpawn.position;
-        ObjectToMove.transform.rotation = freeSpawn.rotation;
+        camPlayer.transform.position = freeSpawn.position;
+        camPlayer.transform.rotation = freeSpawn.rotation;
         objectMoveButton.interactable = true;
         freeMoveButton.interactable = false;
         resetObjectButton.gameObject.SetActive(false);
@@ -85,26 +96,40 @@ public class ManagerUI : MonoBehaviour
 
     public void OnObjectMoveClicked()
     {
-        ObjectToMove.transform.position = ObjectSpawn.position;
-        ObjectToMove.transform.rotation = ObjectSpawn.rotation;
+        camPlayer.transform.position = ObjectSpawn.position;
+        camPlayer.transform.rotation = ObjectSpawn.rotation;
         objectMoveButton.interactable = false;
         freeMoveButton.interactable = true;
         resetObjectButton.gameObject.SetActive(true);
+        showObjectsButton.gameObject.SetActive(true);
     }
 
-    public void setActiveForearms(bool active)
+    public void OnShowObjects()
     {
-        mirrorManager.SetShowForearms(active);
+        panelObjects.SetActive(true);
+    }
+
+    public void OnSetObjectToMove(GameObject objectToMove)
+    {
+        ObjectToMove.transform.position = initialTransforms[ObjectToMove].position;
+        ObjectToMove.transform.rotation = initialTransforms[ObjectToMove].rotation;
+
+        ObjectToMove = objectToMove;
+        ObjectToMove.transform.position = MovePosition.position;
+        ObjectToMove.transform.rotation = initialTransforms[ObjectToMove].rotation;
+
+        panelObjects.SetActive(false);
     }
 
     public void OnResetObjectClicked()
     {
-        for (int i = 0; i < InteractableObjects.Length; i++)
+        foreach (var obj in InteractableObjects)
         {
-            InteractableObjects[i].GetComponent<Rigidbody>().useGravity = false;
-            InteractableObjects[i].transform.position = initialsPositions[i];
-            InteractableObjects[i].transform.rotation = initialsRotations[i];
-            InteractableObjects[i].GetComponent<Rigidbody>().useGravity = true;
+            if (initialTransforms.TryGetValue(obj, out var transformData))
+            {
+                obj.transform.position = transformData.position;
+                obj.transform.rotation = transformData.rotation;
+            }
         }
     }
 
