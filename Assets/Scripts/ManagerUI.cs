@@ -98,6 +98,8 @@ public class ManagerUI : MonoBehaviour
         objectSectionUI.SetActive(false);
         panelColor.SetActive(false);
         panelObjects.SetActive(false);
+
+        mirrorManager.RequestMirrorPlaneUpdate();
     }
 
     public void OnObjectMoveClicked()
@@ -108,6 +110,8 @@ public class ManagerUI : MonoBehaviour
         freeMoveButton.interactable = true;
         objectSectionUI.SetActive(true);
         panelColor.SetActive(false);
+
+        mirrorManager.RequestMirrorPlaneUpdate();
     }
 
     public void OnShowObjects()
@@ -148,5 +152,10 @@ public class ManagerUI : MonoBehaviour
         rightHandRenderer.material = color;
         mirrorManager.SetForearmMaterial(color);
         panelColor.SetActive(false);
+    }
+
+    public void OnResetMirror()
+    {
+        mirrorManager.RequestMirrorPlaneUpdate();
     }
 }

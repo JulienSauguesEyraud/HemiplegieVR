@@ -91,6 +91,9 @@ public class MirrorHand : MonoBehaviour
     private GameObject rightForearmObj;
     private GameObject leftForearmObj;
 
+    // Flag to control when to update the mirror plane
+    private bool updateMirrorPlaneRequested = true;
+
     void Start()
     {
         lastSourceHand = sourceHand;
@@ -303,22 +306,27 @@ public class MirrorHand : MonoBehaviour
 
     void LateUpdate()
     {
-        // Vérifier si la main source a changé
+        // Vrifier si la main source a chang
         if (lastSourceHand != sourceHand)
         {
             lastSourceHand = sourceHand;
             InitializeMirror();
             UpdateForearmVisibility();
+            updateMirrorPlaneRequested = true; // Request update when hand changes
         }
 
         if (enableMirrorTherapy)
         {
-            UpdateMirrorPlane();
+            if (updateMirrorPlaneRequested)
+            {
+                UpdateMirrorPlane();
+                updateMirrorPlaneRequested = false;
+            }
             ForceShowMirrorHand();
             MirrorHands();
         }
         
-        // Toujours mettre à jour la visibilité des forearms
+        // Toujours mettre  jour la visibilit des forearms
         UpdateForearmVisibility();
     }
 
@@ -541,6 +549,14 @@ public class MirrorHand : MonoBehaviour
     {
         if (rightForearm != null) rightForearm.SetHandMaterial(material);
         if (leftForearm != null) leftForearm.SetHandMaterial(material);
+    }
+
+    /// <summary>
+    /// Demande une mise à jour du plan de miroir à la prochaine frame
+    /// </summary>
+    public void RequestMirrorPlaneUpdate()
+    {
+        updateMirrorPlaneRequested = true;
     }
 
     private void ForceShowMirrorHand()

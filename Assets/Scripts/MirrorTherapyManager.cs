@@ -199,4 +199,15 @@ public class MirrorTherapyManager : MonoBehaviour
             mirrorHand.SetForearmMaterial(material);
         }
     }
+
+    /// <summary>
+    /// Demande une mise à jour du plan de miroir
+    /// </summary>
+    public void RequestMirrorPlaneUpdate()
+    {
+        if (mirrorHand != null)
+        {
+            mirrorHand.RequestMirrorPlaneUpdate();
+        }
+    }
 }
