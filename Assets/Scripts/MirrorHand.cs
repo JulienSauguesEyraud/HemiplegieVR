@@ -53,6 +53,9 @@ public class MirrorHand : MonoBehaviour
     [Header("Forearm Settings")]
     [Tooltip("Rayon de l'avant-bras")]
     [SerializeField] private float forearmRadius = 0.025f;
+    [Tooltip("Matériau du vêtement (appliqué sur l'avant-bras)")]
+    [SerializeField] private Material clothingMaterial;
+
     [Tooltip("Longueur minimale de l'avant-bras")]
     [SerializeField] private float forearmMinLength = 0.05f;
     [Tooltip("Longueur maximale de l'avant-bras")]
@@ -212,6 +215,12 @@ public class MirrorHand : MonoBehaviour
             forearm.SetHandMaterial(handMaterial);
         }
         
+        // Définir le matériau du vêtement
+        if (clothingMaterial != null)
+        {
+            forearm.SetClothingMaterial(clothingMaterial);
+        }
+
         // Configuration via réflexion pour éviter les erreurs si les champs ne sont pas publics
         var forearmType = forearm.GetType();
         
@@ -549,6 +558,13 @@ public class MirrorHand : MonoBehaviour
     {
         if (rightForearm != null) rightForearm.SetHandMaterial(material);
         if (leftForearm != null) leftForearm.SetHandMaterial(material);
+    }
+
+    public void SetClothingMaterial(Material material)
+    {
+        clothingMaterial = material;
+        if (rightForearm != null) rightForearm.SetClothingMaterial(material);
+        if (leftForearm != null) leftForearm.SetClothingMaterial(material);
     }
 
     /// <summary>

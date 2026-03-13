@@ -55,6 +55,9 @@ public class ProceduralForearm : MonoBehaviour
     [Tooltip("Matériau à utiliser pour l'avant-bras (copié depuis les mains)")]
     [SerializeField] private Material handMaterial;
     
+    [Tooltip("Matériau du vêtement par dessus l'avant-bras")]
+    [SerializeField] private Material clothingMaterial;
+
     [Tooltip("Opacité de l'avant-bras (0 = invisible, 1 = opaque)")]
     [SerializeField][Range(0f, 1f)] private float opacity = 0.7f;
     
@@ -62,7 +65,9 @@ public class ProceduralForearm : MonoBehaviour
     [SerializeField] private bool useTransparency = true;
 
     private GameObject forearmMesh;
+    private GameObject clothingMesh;
     private MeshRenderer meshRenderer;
+    private MeshRenderer clothingRenderer;
     private Material forearmMaterial;
     private Vector3 estimatedElbowPosition;
     private Vector3 smoothedElbowPosition;
@@ -155,6 +160,19 @@ public class ProceduralForearm : MonoBehaviour
         }
         
         meshRenderer.material = forearmMaterial;
+
+        // Create clothing mesh
+        clothingMesh = GameObject.Instantiate(forearmMesh, transform);
+        clothingMesh.name = "ClothingMesh";
+        clothingRenderer = clothingMesh.GetComponent<MeshRenderer>();
+        if (clothingMaterial != null)
+        {
+            clothingRenderer.material = clothingMaterial;
+        }
+        else
+        {
+            clothingMesh.SetActive(false); // Hide if no material
+        }
     }
 
     /// <summary>
@@ -332,17 +350,33 @@ public class ProceduralForearm : MonoBehaviour
         }
 
         // Position au milieu de l'avant-bras (entre le point de départ reculé et le coude)
-        forearmMesh.transform.position = forearmStart + (elbowPos - forearmStart) * 0.5f;
+        Vector3 centerPos = forearmStart + (elbowPos - forearmStart) * 0.5f;
+        forearmMesh.transform.position = centerPos;
 
         // Rotation pour pointer vers le coude
         // Le cylindre Unity pointe vers le haut (Y), on doit donc le tourner
+        Quaternion rotation = Quaternion.identity;
         if (direction != Vector3.zero)
         {
-            forearmMesh.transform.rotation = Quaternion.FromToRotation(Vector3.up, direction);
+            rotation = Quaternion.FromToRotation(Vector3.up, direction);
+            forearmMesh.transform.rotation = rotation;
         }
 
         // Scale : diamètre en X et Z, longueur en Y
-        forearmMesh.transform.localScale = new Vector3(radius * 2f, length * 0.5f, radius * 2f);
+        Vector3 scale = new Vector3(radius * 2f, length * 0.5f, radius * 2f);
+        forearmMesh.transform.localScale = scale;
+
+        if (clothingMesh != null && clothingMesh.activeSelf)
+        {
+            Vector3 clothingStart = forearmStart - direction.normalized * 0.02f;
+            Vector3 clothingCenter = clothingStart + (elbowPos - clothingStart) * 0.5f;
+            clothingMesh.transform.position = clothingCenter;
+            clothingMesh.transform.rotation = rotation;
+            
+            // Un peu plus ample pour un effet vêtement
+            float clothingLength = Vector3.Distance(clothingStart, elbowPos);
+            clothingMesh.transform.localScale = new Vector3((radius + 0.006f) * 2f, clothingLength * 0.5f, (radius + 0.006f) * 2f);
+        }
     }
 
     /// <summary>
@@ -440,6 +474,27 @@ public class ProceduralForearm : MonoBehaviour
         {
             forearmMesh.SetActive(visible);
         }
+        if (clothingMesh != null && clothingMaterial != null)
+        {
+            clothingMesh.SetActive(visible);
+        }
+    }
+
+    public void SetClothingMaterial(Material material)
+    {
+        clothingMaterial = material;
+        if (clothingRenderer != null)
+        {
+            if (material != null)
+            {
+                clothingRenderer.material = material;
+                clothingMesh.SetActive(isVisible);
+            }
+            else
+            {
+                clothingMesh.SetActive(false);
+            }
+        }
     }
 
     void OnDestroy()
@@ -448,5 +503,7 @@ public class ProceduralForearm : MonoBehaviour
             Destroy(forearmMaterial);
         if (forearmMesh != null)
             Destroy(forearmMesh);
+        if (clothingMesh != null)
+            Destroy(clothingMesh);
     }
 }
