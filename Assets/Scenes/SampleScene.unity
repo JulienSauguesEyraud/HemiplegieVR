@@ -38260,7 +38260,7 @@ PrefabInstance:
       objectReference: {fileID: 2100000, guid: 45e335c98ba947a49b306ec0d074facc, type: 2}
     - target: {fileID: 8702425413754196323, guid: 0a7d2469f24041c4284c66706f84c45e, type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 8779972744546753495, guid: 0a7d2469f24041c4284c66706f84c45e, type: 3}
       propertyPath: _interactors.Array.size
