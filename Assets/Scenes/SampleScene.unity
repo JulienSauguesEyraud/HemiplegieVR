@@ -14294,6 +14294,7 @@ MonoBehaviour:
   disableMirrorHandTracking: 1
   minimumHandDistance: 0.05
   forearmRadius: 0.025
+  clothingMaterial: {fileID: 2100000, guid: f014be49c3c4608489a53c49cf808f92, type: 2}
   forearmMinLength: 0.05
   forearmMaxLength: 0.3
   forearmWristOffset: 0.01
