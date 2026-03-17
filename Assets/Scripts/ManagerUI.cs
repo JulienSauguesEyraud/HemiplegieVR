@@ -30,6 +30,7 @@ public class ManagerUI : MonoBehaviour
     [Header("Objets interactifs")]
     [SerializeField] private GameObject[] InteractableObjects;
     [SerializeField] private Transform MovePosition;
+    [SerializeField] private Transform DuplicatePosition;
     [SerializeField] private GameObject objectSectionUI;
     [SerializeField] private GameObject panelObjects;
     private Dictionary<GameObject, (Vector3 position, Quaternion rotation)> initialTransforms = new();
@@ -74,6 +75,8 @@ public class ManagerUI : MonoBehaviour
         useRightArm.interactable = true;
         panelObjects.SetActive(false);
         panelColor.SetActive(false);
+
+        switchPositions();
     }
 
     public void OnUseRightArmClicked()
@@ -83,6 +86,8 @@ public class ManagerUI : MonoBehaviour
         useRightArm.interactable = false;
         panelObjects.SetActive(false);
         panelColor.SetActive(false);
+
+        switchPositions();
     }
     public void setActiveForearms(bool active)
     {
@@ -161,5 +166,16 @@ public class ManagerUI : MonoBehaviour
     public void OnResetMirror()
     {
         mirrorManager.RequestMirrorPlaneUpdate();
+    }
+
+
+    private void switchPositions()
+    {
+        Transform temp = new GameObject().transform;
+        temp.position = MovePosition.position;
+        MovePosition.position = DuplicatePosition.position;
+        DuplicatePosition.position = temp.position;
+
+        OnResetObjectClicked();
     }
 }

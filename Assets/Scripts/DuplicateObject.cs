@@ -214,7 +214,7 @@ public class DuplicateObject : MonoBehaviour
         duplicatedObject.name = sourceObject.name + "_Mirror";
 
         // Appliquer l'effet miroir sur l'échelle dès l'instanciation
-        Vector3 initialScale = sourceObject.transform.localScale;
+        Vector3 initialScale = originalObject.transform.localScale;
         if (applyMirrorRotation)
         {
             initialScale.x = -initialScale.x;
