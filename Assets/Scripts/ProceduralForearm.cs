@@ -58,6 +58,15 @@ public class ProceduralForearm : MonoBehaviour
     [Tooltip("Matériau du vêtement par dessus l'avant-bras")]
     [SerializeField] private Material clothingMaterial;
 
+    [Tooltip("Mesh pour le vêtement (optionnel, utilise un cylindre si nul)")]
+    [SerializeField] private Mesh clothingMeshTemplate;
+
+    [Tooltip("Echelle du vêtement")]
+    [SerializeField] private Vector3 clothingScale = new Vector3(1f, 1f, 1f);
+
+    [Tooltip("Rotation personnalisée du vêtement")]
+    [SerializeField] private Vector3 clothingRotation = Vector3.zero;
+
     [Tooltip("Opacité de l'avant-bras (0 = invisible, 1 = opaque)")]
     [SerializeField][Range(0f, 1f)] private float opacity = 0.7f;
     
@@ -162,9 +171,20 @@ public class ProceduralForearm : MonoBehaviour
         meshRenderer.material = forearmMaterial;
 
         // Create clothing mesh
-        clothingMesh = GameObject.Instantiate(forearmMesh, transform);
-        clothingMesh.name = "ClothingMesh";
-        clothingRenderer = clothingMesh.GetComponent<MeshRenderer>();
+        if (clothingMeshTemplate != null)
+        {
+            clothingMesh = new GameObject("ClothingMesh");
+            clothingMesh.transform.SetParent(transform);
+            clothingMesh.AddComponent<MeshFilter>().mesh = clothingMeshTemplate;
+            clothingRenderer = clothingMesh.AddComponent<MeshRenderer>();
+        }
+        else
+        {
+            clothingMesh = GameObject.Instantiate(forearmMesh, transform);
+            clothingMesh.name = "ClothingMesh";
+            clothingRenderer = clothingMesh.GetComponent<MeshRenderer>();
+        }
+        
         if (clothingMaterial != null)
         {
             clothingRenderer.material = clothingMaterial;
@@ -371,11 +391,22 @@ public class ProceduralForearm : MonoBehaviour
             Vector3 clothingStart = forearmStart - direction.normalized * 0.02f;
             Vector3 clothingCenter = clothingStart + (elbowPos - clothingStart) * 0.5f;
             clothingMesh.transform.position = clothingCenter;
-            clothingMesh.transform.rotation = rotation;
+            
+            clothingMesh.transform.rotation = rotation * Quaternion.Euler(clothingRotation);
             
             // Un peu plus ample pour un effet vêtement
             float clothingLength = Vector3.Distance(clothingStart, elbowPos);
-            clothingMesh.transform.localScale = new Vector3((radius + 0.006f) * 2f, clothingLength * 0.5f, (radius + 0.006f) * 2f);
+            
+            if (clothingMeshTemplate != null)
+            {
+                // Si on utilise un mesh custom, on applique le scale custom
+                clothingMesh.transform.localScale = clothingScale;
+            }
+            else
+            {
+                // Comportement par défaut pour le cylindre
+                clothingMesh.transform.localScale = new Vector3((radius + 0.006f) * 2f * clothingScale.x, clothingLength * 0.5f * clothingScale.y, (radius + 0.006f) * 2f * clothingScale.z);
+            }
         }
     }
 
@@ -495,6 +526,21 @@ public class ProceduralForearm : MonoBehaviour
                 clothingMesh.SetActive(false);
             }
         }
+    }
+
+    public void SetClothingMesh(Mesh mesh)
+    {
+        clothingMeshTemplate = mesh;
+    }
+
+    public void SetClothingScale(Vector3 scale)
+    {
+        clothingScale = scale;
+    }
+
+    public void SetClothingRotation(Vector3 rot)
+    {
+        clothingRotation = rot;
     }
 
     void OnDestroy()

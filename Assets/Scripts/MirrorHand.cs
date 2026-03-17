@@ -55,6 +55,15 @@ public class MirrorHand : MonoBehaviour
     [SerializeField] private float forearmRadius = 0.025f;
     [Tooltip("Matériau du vêtement (appliqué sur l'avant-bras)")]
     [SerializeField] private Material clothingMaterial;
+    [Tooltip("Mesh facultatif pour le vêtement")]
+    [SerializeField] private Mesh clothingMesh;
+    [Tooltip("Scale personnalisé pour le vêtement")]
+    [SerializeField] private Vector3 clothingScale = new Vector3(1f, 1f, 1f);
+    [Tooltip("Rotation personnalisée pour le vêtement (Bras Droit)")]
+    [SerializeField] private Vector3 rightClothingRotation = Vector3.zero;
+
+    [Tooltip("Rotation personnalisée pour le vêtement (Bras Gauche)")]
+    [SerializeField] private Vector3 leftClothingRotation = new Vector3(0f, 180f, 0f);
 
     [Tooltip("Longueur minimale de l'avant-bras")]
     [SerializeField] private float forearmMinLength = 0.05f;
@@ -145,7 +154,7 @@ public class MirrorHand : MonoBehaviour
             rightForearmObj.transform.SetParent(transform);
             rightForearm = rightForearmObj.AddComponent<ProceduralForearm>();
             
-            ConfigureForearm(rightForearm, rightWrist, elbowHorizontalOffset, handMaterial);
+            ConfigureForearm(rightForearm, rightWrist, elbowHorizontalOffset, handMaterial, rightClothingRotation);
         }
 
         // Créer l'avant-bras gauche
@@ -155,7 +164,7 @@ public class MirrorHand : MonoBehaviour
             leftForearmObj.transform.SetParent(transform);
             leftForearm = leftForearmObj.AddComponent<ProceduralForearm>();
             
-            ConfigureForearm(leftForearm, leftWrist, -elbowHorizontalOffset, handMaterial); // Négatif pour la main gauche
+            ConfigureForearm(leftForearm, leftWrist, -elbowHorizontalOffset, handMaterial, leftClothingRotation); // Négatif pour la main gauche
         }
 
         UpdateForearmVisibility();
@@ -204,7 +213,7 @@ public class MirrorHand : MonoBehaviour
     /// <summary>
     /// Configure un avant-bras procédural
     /// </summary>
-    private void ConfigureForearm(ProceduralForearm forearm, Transform wrist, float horizontalOffset, Material handMaterial)
+    private void ConfigureForearm(ProceduralForearm forearm, Transform wrist, float horizontalOffset, Material handMaterial, Vector3 specificClothingRotation)
     {
         forearm.SetWrist(wrist);
         forearm.SetHeadReference(GetSelectedEye());
@@ -215,11 +224,17 @@ public class MirrorHand : MonoBehaviour
             forearm.SetHandMaterial(handMaterial);
         }
         
-        // Définir le matériau du vêtement
+        // Définir le vêtement
         if (clothingMaterial != null)
         {
             forearm.SetClothingMaterial(clothingMaterial);
         }
+        if (clothingMesh != null)
+        {
+            forearm.SetClothingMesh(clothingMesh);
+        }
+        forearm.SetClothingScale(clothingScale);
+        forearm.SetClothingRotation(specificClothingRotation);
 
         // Configuration via réflexion pour éviter les erreurs si les champs ne sont pas publics
         var forearmType = forearm.GetType();
@@ -565,6 +580,32 @@ public class MirrorHand : MonoBehaviour
         clothingMaterial = material;
         if (rightForearm != null) rightForearm.SetClothingMaterial(material);
         if (leftForearm != null) leftForearm.SetClothingMaterial(material);
+    }
+
+    public void SetClothingMesh(Mesh mesh)
+    {
+        clothingMesh = mesh;
+        if (rightForearm != null) rightForearm.SetClothingMesh(mesh);
+        if (leftForearm != null) leftForearm.SetClothingMesh(mesh);
+    }
+    
+    public void SetClothingScale(Vector3 scale)
+    {
+        clothingScale = scale;
+        if (rightForearm != null) rightForearm.SetClothingScale(scale);
+        if (leftForearm != null) leftForearm.SetClothingScale(scale);
+    }
+
+    public void SetRightClothingRotation(Vector3 rot)
+    {
+        rightClothingRotation = rot;
+        if (rightForearm != null) rightForearm.SetClothingRotation(rot);
+    }
+
+    public void SetLeftClothingRotation(Vector3 rot)
+    {
+        leftClothingRotation = rot;
+        if (leftForearm != null) leftForearm.SetClothingRotation(rot);
     }
 
     /// <summary>
