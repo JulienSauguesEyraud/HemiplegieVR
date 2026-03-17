@@ -25,6 +25,7 @@ public class ManagerUI : MonoBehaviour
 
     [Header("Entities")]
     [SerializeField] private GameObject camPlayer;
+    [SerializeField] private DuplicateObject duplicateObjectManager;
 
     [Header("Objets interactifs")]
     [SerializeField] private GameObject[] InteractableObjects;
@@ -63,6 +64,7 @@ public class ManagerUI : MonoBehaviour
         ObjectToMove = InteractableObjects[0];
         ObjectToMove.transform.position = MovePosition.position;
         ObjectToMove.transform.rotation = MovePosition.rotation;
+        duplicateObjectManager.PreInstantiateDuplicate(ObjectToMove);
     }
 
     public void OnUseLeftArmClicked()
@@ -128,6 +130,7 @@ public class ManagerUI : MonoBehaviour
         ObjectToMove = objectToMove;
         ObjectToMove.transform.position = MovePosition.position;
         ObjectToMove.transform.rotation = initialTransforms[ObjectToMove].rotation;
+        duplicateObjectManager.PreInstantiateDuplicate(ObjectToMove);
 
         panelObjects.SetActive(false);
     }
@@ -138,6 +141,7 @@ public class ManagerUI : MonoBehaviour
         ObjectToMove.transform.rotation = initialTransforms[ObjectToMove].rotation;
         panelObjects.SetActive(false);
         panelColor.SetActive(false);
+        duplicateObjectManager.PreInstantiateDuplicate(ObjectToMove);
     }
 
     public void OnShowColor()

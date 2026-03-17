@@ -8,53 +8,75 @@ public class DuplicateObject : MonoBehaviour
     [SerializeField] private MirrorHand mirrorHand;
     
     [Header("Duplication Settings")]
-    [Tooltip("Parent pour l'objet dupliqué (optionnel)")]
-    [SerializeField] private Transform duplicateParent;
-    
+    [Tooltip("Spawn pour l'objet dupliqué (optionnel)")]
+    [SerializeField] private Transform duplicateSpawnPoint;
+
     [Tooltip("Décalage local à appliquer à l'objet dupliqué")]
     [SerializeField] private Vector3 localOffset = Vector3.zero;
     
     [Tooltip("Appliquer la rotation miroir à l'objet dupliqué")]
     [SerializeField] private bool applyMirrorRotation = true;
     
-    [Header("Debug")]
-    [SerializeField] private bool showDebugLogs = true;
-    
     private GameObject duplicatedObject;
     private GameObject originalObject;
-    private bool isDuplicating = false;
     private DetectObject activeDetector; // La main qui tient actuellement l'objet
-    private bool hasStartedMoving = false; // Pour tracker si l'objet a commencé à bouger au moins une fois
+    private bool isTracking = false; // Vrai si l'objet a commencé à bouger
     
     private void Update()
-    {
-        // Déterminer quelle main détecte l'objet (priorité à celle qui l'a attrapé en premier)
-        DetectObject currentDetector = GetActiveDetector();
-        
-        // Si on n'a pas encore commencé la duplication
-        if (!isDuplicating)
+    {        
+        bool detectedThisFrame = false;
+
+        // Déterminer quelle main détecte l'objet physiquement dans son collider
+        if (rightHandDetector != null && rightHandDetector.IsObjectDetected && rightHandDetector.DetectedObject == originalObject)
         {
-            // Vérifier si les conditions sont remplies pour démarrer
-            if (ShouldStartDuplication(currentDetector))
+            activeDetector = rightHandDetector;
+            detectedThisFrame = true;
+        }
+        else if (leftHandDetector != null && leftHandDetector.IsObjectDetected && leftHandDetector.DetectedObject == originalObject)
+        {
+            activeDetector = leftHandDetector;
+            detectedThisFrame = true;
+        }
+
+        // Sécurité pour les mouvements amples (Hystérésis) : 
+        // Le Rigidbody de l'objet peut subir un petit retard par rapport au Tracking de la main lors d'un mouvement rapide,
+        // ce qui le fait sortir brièvement du Collider. On ne veut pas casser la duplication dans ce cas.
+        if (!detectedThisFrame)
+        {
+            if (activeDetector != null && originalObject != null)
             {
-                activeDetector = currentDetector;
-                hasStartedMoving = true;
-                StartDuplication();
+                float distance = Vector3.Distance(activeDetector.transform.position, originalObject.transform.position);
+                // Si l'objet s'est trop éloigné (ex: +20 cm), c'est qu'il a vraiment été relâché
+                if (distance > 0.2f)
+                {
+                    activeDetector = null; 
+                }
+            }
+            else
+            {
+                activeDetector = null;
+            }
+        }
+
+        // Si une main tient l'objet
+        if (activeDetector != null)
+        {
+            // On ne commence à le déplacer en miroir que s'il commence à bouger
+            if (!isTracking && detectedThisFrame && activeDetector.IsObjectMoving)
+            {
+                isTracking = true;
+            }
+
+            // Si le suivi a commencé, on met à jour la position
+            if (isTracking)
+            {
+                UpdateDuplicateTransform();
             }
         }
         else
         {
-            // Si on est en train de dupliquer, mettre à jour la position
-            if (duplicatedObject != null && originalObject != null)
-            {
-                UpdateDuplicateTransform();
-            }
-            
-            // Arrêter la duplication UNIQUEMENT si l'objet n'est plus détecté par AUCUNE main
-            if (!IsObjectDetectedByAnyHand())
-            {
-                StopDuplication();
-            }
+            // L'objet a été lâché physiquement, on réinitialise le suivi
+            isTracking = false;
         }
     }
     
@@ -100,25 +122,21 @@ public class DuplicateObject : MonoBehaviour
     {
         if (mirrorHand == null || !mirrorHand.IsEnabled)
         {
-            if (showDebugLogs) Debug.Log("[DuplicateObject] Miroir non activé");
             return false;
         }
         
         if (detector == null)
         {
-            if (showDebugLogs) Debug.Log("[DuplicateObject] Aucun détecteur actif");
             return false;
         }
         
         if (!detector.IsObjectDetected)
         {
-            if (showDebugLogs) Debug.Log("[DuplicateObject] Objet non détecté");
             return false;
         }
         
         if (!detector.IsObjectMoving)
         {
-            if (showDebugLogs) Debug.Log("[DuplicateObject] Objet non en mouvement");
             return false;
         }
         
@@ -132,7 +150,6 @@ public class DuplicateObject : MonoBehaviour
     {
         if (activeDetector == null)
         {
-            Debug.LogWarning("[DuplicateObject] activeDetector est null dans StartDuplication");
             return;
         }
         
@@ -140,51 +157,71 @@ public class DuplicateObject : MonoBehaviour
         
         if (originalObject == null)
         {
-            Debug.LogWarning("[DuplicateObject] Impossible de dupliquer : objet null");
             return;
         }
         
-        // Créer la copie
-        duplicatedObject = Instantiate(originalObject);
-        duplicatedObject.name = originalObject.name + "_Mirror";
-        
-        // Définir le parent si spécifié
-        if (duplicateParent != null)
+        // Créer la copie seulement si elle n'existe pas déjà
+        if (duplicatedObject == null)
         {
-            duplicatedObject.transform.SetParent(duplicateParent);
+            duplicatedObject = Instantiate(originalObject, duplicateSpawnPoint.position, duplicateSpawnPoint.rotation);
+            duplicatedObject.name = originalObject.name + "_Mirror";
+            
+            // Appliquer l'effet miroir sur l'échelle dès l'instanciation
+            Vector3 initialScale = originalObject.transform.localScale;
+            if (applyMirrorRotation)
+            {
+                initialScale.x = -initialScale.x;
+            }
+            duplicatedObject.transform.localScale = initialScale;
+            
+            // Désactiver les composants physiques sur la copie pour éviter les interférences
+            DisablePhysicsComponents(duplicatedObject);
         }
-        
-        // Désactiver les composants physiques sur la copie pour éviter les interférences
-        DisablePhysicsComponents(duplicatedObject);
         
         // Mettre à jour la transformation
         UpdateDuplicateTransform();
         
-        isDuplicating = true;
-        
-        string handName = (activeDetector == rightHandDetector) ? "droite" : "gauche";
-        Debug.Log($"[DuplicateObject] ? Duplication démarrée pour {originalObject.name} (main {handName})");
+        isTracking = true;
     }
     
     /// <summary>
-    /// Arrête la duplication et détruit l'objet dupliqué
+    /// Arrête la duplication. Si un spawn point est défini, l'objet y retourne au lieu d'être détruit.
     /// </summary>
     private void StopDuplication()
     {
+        activeDetector = null;
+        isTracking = false;
+    }
+    
+    /// <summary>
+    /// Instancie l'objet à l'avance sur le point de spawn
+    /// </summary>
+    public void PreInstantiateDuplicate(GameObject sourceObject)
+    {
+        if (sourceObject == null || duplicateSpawnPoint == null)
+        {
+            Debug.LogWarning("PreInstantiateDuplicate: sourceObject ou duplicateSpawnPoint est manquant.");
+            return;
+        }
+
         if (duplicatedObject != null)
         {
-            string handName = activeDetector != null ? 
-                ((activeDetector == rightHandDetector) ? "droite" : "gauche") : 
-                "inconnue";
-            Debug.Log($"[DuplicateObject] ? Duplication arrêtée pour {originalObject?.name ?? "objet inconnu"} (main {handName})");
             Destroy(duplicatedObject);
         }
-        
-        duplicatedObject = null;
-        originalObject = null;
-        activeDetector = null;
-        isDuplicating = false;
-        hasStartedMoving = false;
+
+        originalObject = sourceObject;
+        duplicatedObject = Instantiate(sourceObject, duplicateSpawnPoint.position, duplicateSpawnPoint.rotation);
+        duplicatedObject.name = sourceObject.name + "_Mirror";
+
+        // Appliquer l'effet miroir sur l'échelle dès l'instanciation
+        Vector3 initialScale = sourceObject.transform.localScale;
+        if (applyMirrorRotation)
+        {
+            initialScale.x = -initialScale.x;
+        }
+        duplicatedObject.transform.localScale = initialScale;
+
+        DisablePhysicsComponents(duplicatedObject);
     }
     
     /// <summary>
@@ -195,145 +232,38 @@ public class DuplicateObject : MonoBehaviour
         if (duplicatedObject == null || originalObject == null)
             return;
         
-        // Calculer la position miroir de l'objet
-        Vector3 mirroredPosition = GetMirrorPosition(originalObject.transform.position);
-        duplicatedObject.transform.position = mirroredPosition + localOffset;
+        DetectObject mirrorDetector = (activeDetector == rightHandDetector) ? leftHandDetector : rightHandDetector;
         
-        // Appliquer la rotation miroir si activé
+        if (mirrorDetector != null)
+        {
+            // Calculer la position relative de l'objet par rapport à la main active
+            Vector3 localPos = activeDetector.transform.InverseTransformPoint(originalObject.transform.position);
+            
+            // Inverser l'axe X (généralement utilisé pour la symétrie gauche/droite des mains dans Unity)
+            localPos.x = -localPos.x;
+            
+            duplicatedObject.transform.position = mirrorDetector.transform.TransformPoint(localPos) + localOffset;
+            
+            // Appliquer la rotation miroir si activé
+            if (applyMirrorRotation)
+            {
+                // On conserve la rotation relative intacte
+                Quaternion localRot = Quaternion.Inverse(activeDetector.transform.rotation) * originalObject.transform.rotation;
+                duplicatedObject.transform.rotation = mirrorDetector.transform.rotation * localRot;
+            }
+            else
+            {
+                duplicatedObject.transform.rotation = originalObject.transform.rotation;
+            }
+        }
+        
+        // Copier l'échelle et inverser l'axe X pour faire l'effet miroir parfait via le scale
+        Vector3 newScale = originalObject.transform.localScale;
         if (applyMirrorRotation)
         {
-            Quaternion mirroredRotation = GetMirrorRotation(originalObject.transform.rotation);
-            duplicatedObject.transform.rotation = mirroredRotation;
+            newScale.x = -newScale.x;
         }
-        else
-        {
-            duplicatedObject.transform.rotation = originalObject.transform.rotation;
-        }
-        
-        // Copier l'échelle
-        duplicatedObject.transform.localScale = originalObject.transform.localScale;
-    }
-    
-    /// <summary>
-    /// Calcule la position miroir d'un point
-    /// </summary>
-    private Vector3 GetMirrorPosition(Vector3 position)
-    {
-        if (mirrorHand == null)
-            return position;
-        
-        // Utiliser la même logique de miroir que MirrorHand
-        Transform eye = GetSelectedEye();
-        if (eye == null)
-            return position;
-        
-        // Plan de miroir
-        Vector3 mirrorPlanePoint = eye.position;
-        Vector3 eyeRight = eye.right;
-        Vector3 mirrorPlaneNormal = new Vector3(eyeRight.x, 0, eyeRight.z).normalized;
-        
-        // Si la normale est trop petite, utiliser forward
-        if (mirrorPlaneNormal.sqrMagnitude < 0.001f)
-        {
-            Vector3 eyeForward = eye.forward;
-            mirrorPlaneNormal = new Vector3(-eyeForward.z, 0, eyeForward.x).normalized;
-        }
-        
-        // Réflexion de la position
-        float distance = Vector3.Dot(position - mirrorPlanePoint, mirrorPlaneNormal);
-        return position - 2 * distance * mirrorPlaneNormal;
-    }
-    
-    /// <summary>
-    /// Calcule la rotation miroir d'une rotation
-    /// </summary>
-    private Quaternion GetMirrorRotation(Quaternion rotation)
-    {
-        Transform eye = GetSelectedEye();
-        if (eye == null)
-            return rotation;
-        
-        // Plan de miroir
-        Vector3 eyeRight = eye.right;
-        Vector3 mirrorPlaneNormal = new Vector3(eyeRight.x, 0, eyeRight.z).normalized;
-        
-        if (mirrorPlaneNormal.sqrMagnitude < 0.001f)
-        {
-            Vector3 eyeForward = eye.forward;
-            mirrorPlaneNormal = new Vector3(-eyeForward.z, 0, eyeForward.x).normalized;
-        }
-        
-        // Réflexion des axes
-        Vector3 forward = rotation * Vector3.forward;
-        Vector3 up = rotation * Vector3.up;
-        
-        Vector3 reflectedForward = ReflectDirection(forward, mirrorPlaneNormal);
-        Vector3 reflectedUp = ReflectDirection(up, mirrorPlaneNormal);
-        
-        if (reflectedForward != Vector3.zero && reflectedUp != Vector3.zero)
-        {
-            return Quaternion.LookRotation(reflectedForward, reflectedUp);
-        }
-        return rotation;
-    }
-    
-    /// <summary>
-    /// Réfléchit une direction par rapport au plan de miroir
-    /// </summary>
-    private Vector3 ReflectDirection(Vector3 direction, Vector3 normal)
-    {
-        return direction - 2 * Vector3.Dot(direction, normal) * normal;
-    }
-    
-    /// <summary>
-    /// Retourne le transform de l'œil sélectionné dans MirrorHand
-    /// </summary>
-    private Transform GetSelectedEye()
-    {
-        if (mirrorHand == null)
-            return null;
-        
-        // Utiliser la réflexion pour accéder aux références d'yeux privées
-        var mirrorHandType = mirrorHand.GetType();
-        
-        // Récupérer l'EyeReference actuel
-        var eyeRefField = mirrorHandType.GetProperty("CurrentEyeReference");
-        if (eyeRefField == null)
-            return null;
-        
-        EyeReference eyeRef = (EyeReference)eyeRefField.GetValue(mirrorHand);
-        
-        // Récupérer le Transform correspondant
-        Transform centerEye = GetPrivateField<Transform>(mirrorHand, "centerEye");
-        Transform leftEye = GetPrivateField<Transform>(mirrorHand, "leftEye");
-        Transform rightEye = GetPrivateField<Transform>(mirrorHand, "rightEye");
-        
-        switch (eyeRef)
-        {
-            case EyeReference.LeftEye:
-                return leftEye;
-            case EyeReference.RightEye:
-                return rightEye;
-            case EyeReference.CenterEye:
-            default:
-                return centerEye;
-        }
-    }
-    
-    /// <summary>
-    /// Récupère un champ privé via réflexion
-    /// </summary>
-    private T GetPrivateField<T>(object obj, string fieldName) where T : class
-    {
-        var field = obj.GetType().GetField(fieldName, 
-            System.Reflection.BindingFlags.NonPublic | 
-            System.Reflection.BindingFlags.Instance);
-        
-        if (field != null)
-        {
-            return field.GetValue(obj) as T;
-        }
-        return null;
+        duplicatedObject.transform.localScale = newScale;
     }
     
     /// <summary>
@@ -341,31 +271,66 @@ public class DuplicateObject : MonoBehaviour
     /// </summary>
     private void DisablePhysicsComponents(GameObject obj)
     {
-        // Désactiver les Rigidbody
-        Rigidbody[] rigidbodies = obj.GetComponentsInChildren<Rigidbody>();
-        foreach (var rb in rigidbodies)
+        // Désactiver l'enfant (ou les enfants) qui contient la logique Meta Building Blocks
+        for (int i = 0; i < obj.transform.childCount; i++)
         {
-            rb.isKinematic = true;
-            rb.useGravity = false;
+            obj.transform.GetChild(i).gameObject.SetActive(false);
         }
         
-        // Désactiver les Colliders pour éviter les interactions physiques
-        Collider[] colliders = obj.GetComponentsInChildren<Collider>();
-        foreach (var col in colliders)
+        // Appliquer le layer IgnoreObject pour éviter les collisions (si configuré dans la matrice)
+        int ignoreLayer = LayerMask.NameToLayer("IgnoreObject");
+        if (ignoreLayer != -1)
         {
-            col.enabled = false;
+            SetLayerRecursively(obj, ignoreLayer);
         }
-        
-        if (showDebugLogs)
+
+        // Changer le tag pour éviter que le trigger de l'autre main (DetectObject) ne détecte par erreur la copie
+        SetTagRecursively(obj, "Untagged");
+
+        // Ignorer explicitement la collision entre l'objet original et son clone
+        if (originalObject != null)
         {
-            Debug.Log($"[DuplicateObject] {rigidbodies.Length} Rigidbodies et {colliders.Length} Colliders désactivés sur {obj.name}");
+            Collider[] originalColliders = originalObject.GetComponentsInChildren<Collider>(true);
+            Collider[] duplicateColliders = obj.GetComponentsInChildren<Collider>(true);
+
+            foreach (var colOrig in originalColliders)
+            {
+                foreach (var colDup in duplicateColliders)
+                {
+                    Physics.IgnoreCollision(colOrig, colDup, true);
+                }
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Applique le layer récursivement à tous les enfants
+    /// </summary>
+    private void SetLayerRecursively(GameObject obj, int newLayer)
+    {
+        obj.layer = newLayer;
+        foreach (Transform child in obj.transform)
+        {
+            SetLayerRecursively(child.gameObject, newLayer);
+        }
+    }
+
+    /// <summary>
+    /// Applique un tag récursivement à tous les enfants
+    /// </summary>
+    private void SetTagRecursively(GameObject obj, string newTag)
+    {
+        obj.tag = newTag;
+        foreach (Transform child in obj.transform)
+        {
+            SetTagRecursively(child.gameObject, newTag);
         }
     }
     
     /// <summary>
     /// Propriété publique pour savoir si on est en train de dupliquer
     /// </summary>
-    public bool IsDuplicating => isDuplicating;
+    public bool IsDuplicating => isTracking;
     
     /// <summary>
     /// Propriété publique pour accéder à l'objet dupliqué
