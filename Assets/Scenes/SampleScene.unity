@@ -1466,7 +1466,7 @@ MonoBehaviour:
   - {fileID: 1947834936}
   - {fileID: 570919324}
   MovePosition: {fileID: 1341348226}
-  DuplicatePosition: {fileID: 0}
+  DuplicatePosition: {fileID: 1506688333}
   objectSectionUI: {fileID: 1420787066}
   panelObjects: {fileID: 532490167}
   leftHandRenderer: {fileID: 471268633}

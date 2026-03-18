@@ -175,6 +175,7 @@ public class ManagerUI : MonoBehaviour
         temp.position = MovePosition.position;
         MovePosition.position = DuplicatePosition.position;
         DuplicatePosition.position = temp.position;
+        Destroy(temp.gameObject);
 
         OnResetObjectClicked();
     }
